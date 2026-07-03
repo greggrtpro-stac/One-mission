@@ -1,0 +1,28 @@
+/* Thème clair */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --surface-2: #f0f0ec;
+  --surface-3: #e8e8e3;
+  --line: rgba(10, 10, 13, 0.09);
+  --line-strong: rgba(10, 10, 13, 0.16);
+
+  --ink: #141417;
+  --muted: #5d5d66;
+  --faint: #9b9ba4;
+
+  --accent: #f56200;
+  --accent-hover: #ff7a1f;
+  --accent-soft: rgba(245, 98, 0, 0.11);
+  --accent-glow: rgba(245, 98, 0, 0.28);
+  --on-accent: #ffffff;
+
+  --success: #189d47;
+  --success-soft: rgba(24, 157, 71, 0.12);
+  --danger: #d92d2d;
+  --danger-soft: rgba(217, 45, 45, 0.11);
+  --warning: #c98a10;
+  --warning-soft: rgba(201, 138, 16, 0.13);
+}

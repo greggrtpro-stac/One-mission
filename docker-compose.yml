@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: one-mission-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: onemission
+      POSTGRES_PASSWORD: onemission_dev
+      POSTGRES_DB: onemission
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0a0d" />
+    <meta
+      name="description"
+      content="One Mission — transforme tes objectifs en quêtes, ta discipline en XP et tes journées en progression mesurable."
+    />
+    <title>One Mission — Ta vie, une quête à la fois</title>
+    <script>
+      // Applique le thème avant le premier rendu pour éviter tout flash.
+      try {
+        var s = JSON.parse(localStorage.getItem('om-theme'))
+        var t = s && s.state && s.state.theme
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

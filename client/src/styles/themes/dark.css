@@ -1,0 +1,29 @@
+/* Thème sombre — thème par défaut de One Mission */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0a0a0d;
+  --surface: #131318;
+  --surface-2: #1a1a21;
+  --surface-3: #22222b;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+
+  --ink: #f6f6f4;
+  --muted: #9c9ca6;
+  --faint: #62626e;
+
+  --accent: #ff6a00;
+  --accent-hover: #ff8329;
+  --accent-soft: rgba(255, 106, 0, 0.14);
+  --accent-glow: rgba(255, 106, 0, 0.35);
+  --on-accent: #ffffff;
+
+  --success: #30c960;
+  --success-soft: rgba(48, 201, 96, 0.14);
+  --danger: #f04444;
+  --danger-soft: rgba(240, 68, 68, 0.14);
+  --warning: #f5b93d;
+  --warning-soft: rgba(245, 185, 61, 0.14);
+}
