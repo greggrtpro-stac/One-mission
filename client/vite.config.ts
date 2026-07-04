@@ -11,6 +11,9 @@ export default defineConfig({
     },
   },
   server: {
+    // Échoue si 5173 est pris plutôt que de basculer en silence sur 5174
+    // (sinon le navigateur pointe sur une vieille instance et rien ne s'affiche).
+    strictPort: true,
     proxy: {
       '/api': 'http://localhost:4000',
     },
