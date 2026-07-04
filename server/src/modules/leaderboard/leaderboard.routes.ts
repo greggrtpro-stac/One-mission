@@ -36,13 +36,15 @@ leaderboardRouter.use(requireAuth)
 leaderboardRouter.get('/', async (req: Request, res: Response) => {
   const meId = getUserId(req)
 
+  // Confidentialité : seuls les joueurs qui l'acceptent apparaissent au classement.
   const [top, totalPlayers, me] = await Promise.all([
     prisma.user.findMany({
+      where: { showOnLeaderboard: true },
       orderBy: [{ totalXp: 'desc' }, { createdAt: 'asc' }],
       take: TOP_SIZE,
       select: publicFields,
     }),
-    prisma.user.count(),
+    prisma.user.count({ where: { showOnLeaderboard: true } }),
     prisma.user.findUnique({
       where: { id: meId },
       select: { ...publicFields, createdAt: true },
@@ -54,9 +56,11 @@ leaderboardRouter.get('/', async (req: Request, res: Response) => {
 
   let meEntry = entries.find((e) => e.isMe)
   if (!meEntry) {
-    // Hors du top : son rang = joueurs strictement devant lui + 1 (même tri).
+    // Hors du top : son rang = joueurs visibles strictement devant lui + 1 (même tri).
     const ahead = await prisma.user.count({
       where: {
+        showOnLeaderboard: true,
+        id: { not: meId },
         OR: [
           { totalXp: { gt: me.totalXp } },
           { totalXp: me.totalXp, createdAt: { lt: me.createdAt } },

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { bootstrapSession } from '@/api/auth'
 import { AppShell } from '@/components/layout/AppShell'
 import { GuestOnly, RequireAuth } from '@/components/layout/guards'
@@ -16,7 +16,6 @@ import { LeaderboardPage } from '@/features/leaderboard/LeaderboardPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { QuestsPage } from '@/features/quests/QuestsPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
-import { StatsPage } from '@/features/stats/StatsPage'
 import { WeeklyPage } from '@/features/weekly/WeeklyPage'
 
 const router = createBrowserRouter([
@@ -44,7 +43,8 @@ const router = createBrowserRouter([
           { path: 'addictions', element: <AddictionsPage /> },
           { path: 'journal', element: <JournalPage /> },
           { path: 'leaderboard', element: <LeaderboardPage /> },
-          { path: 'stats', element: <StatsPage /> },
+          // Les statistiques vivent désormais sur le Profil.
+          { path: 'stats', element: <Navigate to="/app/profile" replace /> },
           { path: 'profile', element: <ProfilePage /> },
           { path: 'settings', element: <SettingsPage /> },
         ],

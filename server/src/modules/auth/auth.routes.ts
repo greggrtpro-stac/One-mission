@@ -14,9 +14,9 @@ import {
 } from './auth.schemas.js'
 import * as auth from './auth.service.js'
 
-const REFRESH_COOKIE = 'om_refresh'
+export const REFRESH_COOKIE = 'om_refresh'
 
-const refreshCookieOptions = {
+export const refreshCookieOptions = {
   httpOnly: true,
   sameSite: 'lax' as const,
   secure: isProd,

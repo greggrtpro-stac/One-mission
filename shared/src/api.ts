@@ -1,19 +1,45 @@
 /** Formes des objets renvoyés par l'API (contrat client/serveur). */
 
+/** Préférences de notifications (architecture prête, envoi réel à venir). */
+export interface NotificationPrefs {
+  /** Rappels des quêtes qui arrivent à échéance. */
+  questReminders: boolean
+  /** Récapitulatif hebdomadaire de progression. */
+  weeklyRecap: boolean
+  /** Messages automatiques du coach IA. */
+  coachMessages: boolean
+}
+
+export const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
+  questReminders: true,
+  weeklyRecap: true,
+  coachMessages: true,
+}
+
+export const LANGUAGES = ['fr', 'en'] as const
+export type Language = (typeof LANGUAGES)[number]
+
 export interface PublicUser {
   id: string
   email: string
   username: string
   firstName: string | null
   lastName: string | null
+  phone: string | null
   avatarUrl: string | null
   theme: string
+  language: Language
+  notifications: NotificationPrefs
+  showOnLeaderboard: boolean
+  twoFactorEnabled: boolean
   level: number
   totalXp: number
   currentXp: number
   currentStreak: number
   longestStreak: number
   hasPassword: boolean
+  /** Compte relié à Google (connexion OAuth possible). */
+  hasGoogle: boolean
   createdAt: string
 }
 
@@ -211,14 +237,22 @@ export interface LeaderboardResponse {
   totalPlayers: number
 }
 
-// ── Statistiques ─────────────────────────────────────────────
+// ── Statistiques du profil ───────────────────────────────────
 
-export interface DailyStat {
-  /** Jour local (YYYY-MM-DD). */
+/** Activité d'un jour local (YYYY-MM-DD). */
+export interface ProfileDay {
   date: string
   questsDone: number
-  xpFromQuests: number
+  /** XP estimée gagnée ce jour (quêtes + focus + journal). */
+  xpGained: number
   focusSeconds: number
+  relapses: number
+}
+
+/** Quêtes terminées sur une semaine (lundi YYYY-MM-DD). */
+export interface ProfileWeek {
+  weekStart: string
+  questsDone: number
 }
 
 export interface CategoryStat {
@@ -226,17 +260,44 @@ export interface CategoryStat {
   count: number
 }
 
-export interface StatsOverview {
-  days: DailyStat[]
+/** État d'une addiction suivie, pour les graphiques du profil. */
+export interface AddictionStreakStat {
+  name: string
+  icon: string | null
+  currentDays: number
+  bestDays: number
+  relapseCount: number
+}
+
+/** Toutes les données de la page Profil (stats, séries, graphiques). */
+export interface ProfileStats {
+  rank: number
+  totalPlayers: number
+
+  questsCreated: number
+  questsDone: number
+  /** Taux de réussite en % (quêtes terminées / quêtes créées). */
+  successRate: number
+  mainQuestsDone: number
+  weeklyCompletions: number
+
+  focusSeconds: number
+  /** Moyenne quotidienne de focus depuis la création du compte. */
+  focusAvgSecondsPerDay: number
+  deepworkSessions: number
+  journalEntries: number
+
+  addictionsCount: number
+  relapsesTotal: number
+  /** Plus longue période sans rechute, toutes addictions confondues (jours). */
+  longestCleanDays: number
+
+  /** 30 derniers jours, du plus ancien à aujourd'hui. */
+  days: ProfileDay[]
+  /** 12 dernières semaines, de la plus ancienne à la semaine en cours. */
+  weeks: ProfileWeek[]
+  addictions: AddictionStreakStat[]
   categories: CategoryStat[]
-  totals: {
-    questsDone: number
-    weeklyCompletions: number
-    focusSeconds: number
-    deepworkSessions: number
-    journalEntries: number
-    relapsesAvoidedDays: number
-  }
 }
 
 export interface MainQuestDto {

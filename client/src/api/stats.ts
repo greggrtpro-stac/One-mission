@@ -1,4 +1,4 @@
-import type { LeaderboardResponse, StatsOverview } from '@one-mission/shared'
+import type { LeaderboardResponse, ProfileStats } from '@one-mission/shared'
 import { http } from './http'
 
 export const leaderboardApi = {
@@ -6,5 +6,5 @@ export const leaderboardApi = {
 }
 
 export const statsApi = {
-  overview: () => http.get<StatsOverview>('/api/stats/overview'),
+  profile: () => http.get<ProfileStats>('/api/stats/profile'),
 }

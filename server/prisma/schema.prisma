@@ -66,8 +66,18 @@ model User {
   username     String  @unique
   firstName    String?
   lastName     String?
+  phone        String?
   avatarUrl    String?
   theme        String  @default("dark")
+  language     String  @default("fr")
+
+  // Préférences de notifications { questReminders, weeklyRecap, coachMessages }
+  notifications     Json?
+  showOnLeaderboard Boolean @default(true)
+
+  // Sécurité — architecture 2FA (pas encore activable côté client)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
 
   // Gamification (autorité serveur)
   level          Int       @default(1)

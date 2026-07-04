@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  BarChart3,
   BookOpenText,
   CalendarCheck,
   LayoutDashboard,
@@ -36,7 +35,6 @@ const NAV = [
   { to: '/app/addictions', label: 'Addictions', icon: ShieldCheck },
   { to: '/app/journal', label: 'Journal', icon: BookOpenText },
   { to: '/app/leaderboard', label: 'Classement', icon: Trophy },
-  { to: '/app/stats', label: 'Statistiques', icon: BarChart3 },
 ]
 
 const NAV_BOTTOM = [
