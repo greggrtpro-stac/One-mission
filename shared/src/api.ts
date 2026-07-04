@@ -99,6 +99,59 @@ export interface DashboardSummary {
   questsDoneToday: number
 }
 
+// ── DeepWork ─────────────────────────────────────────────────
+
+export interface DeepWorkSettings {
+  focusMinutes: number
+  shortBreakMinutes: number
+  longBreakMinutes: number
+  cyclesBeforeLongBreak: number
+}
+
+export const DEFAULT_DEEPWORK_SETTINGS: DeepWorkSettings = {
+  focusMinutes: 25,
+  shortBreakMinutes: 5,
+  longBreakMinutes: 15,
+  cyclesBeforeLongBreak: 4,
+}
+
+export interface DeepWorkSessionDto {
+  id: string
+  startedAt: string
+  duration: number
+  kind: string
+  completed: boolean
+}
+
+export interface DeepWorkStats {
+  todaySeconds: number
+  weekSeconds: number
+  monthSeconds: number
+  totalSeconds: number
+  sessionsCount: number
+  settings: DeepWorkSettings
+}
+
+// ── Addictions ───────────────────────────────────────────────
+
+export interface RelapseDto {
+  id: string
+  occurredAt: string
+  streakLost: number
+  note: string | null
+}
+
+export interface AddictionDto {
+  id: string
+  name: string
+  icon: string | null
+  startDate: string
+  relapseCount: number
+  bestStreak: number
+  createdAt: string
+  relapses: RelapseDto[]
+}
+
 export interface MainQuestDto {
   id: string
   title: string

@@ -4,11 +4,13 @@ import { bootstrapSession } from '@/api/auth'
 import { AppShell } from '@/components/layout/AppShell'
 import { ComingSoon } from '@/components/layout/ComingSoon'
 import { GuestOnly, RequireAuth } from '@/components/layout/guards'
+import { AddictionsPage } from '@/features/addictions/AddictionsPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { DeepWorkPage } from '@/features/deepwork/DeepWorkPage'
 import { LandingPage } from '@/features/landing/LandingPage'
 import { QuestsPage } from '@/features/quests/QuestsPage'
 import { WeeklyPage } from '@/features/weekly/WeeklyPage'
@@ -34,8 +36,8 @@ const router = createBrowserRouter([
           { index: true, element: <DashboardPage /> },
           { path: 'quests', element: <QuestsPage /> },
           { path: 'weekly', element: <WeeklyPage /> },
-          { path: 'deepwork', element: <ComingSoon title="DeepWork" /> },
-          { path: 'addictions', element: <ComingSoon title="Addictions" /> },
+          { path: 'deepwork', element: <DeepWorkPage /> },
+          { path: 'addictions', element: <AddictionsPage /> },
           { path: 'journal', element: <ComingSoon title="Journal" /> },
           { path: 'leaderboard', element: <ComingSoon title="Classement" /> },
           { path: 'stats', element: <ComingSoon title="Statistiques" /> },

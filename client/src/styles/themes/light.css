@@ -19,6 +19,10 @@
   --accent-glow: rgba(245, 98, 0, 0.28);
   --on-accent: #ffffff;
 
+  /* Marques de graphiques (validées contre la surface claire) */
+  --chart-1: #f56200;
+  --chart-muted: #c4c4bd;
+
   --success: #189d47;
   --success-soft: rgba(24, 157, 71, 0.12);
   --danger: #d92d2d;

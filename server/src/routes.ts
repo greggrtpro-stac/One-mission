@@ -1,6 +1,8 @@
 import { Router } from 'express'
+import { addictionsRouter } from './modules/addictions/addictions.routes.js'
 import { authRouter } from './modules/auth/auth.routes.js'
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js'
+import { deepworkRouter } from './modules/deepwork/deepwork.routes.js'
 import { mainQuestRouter } from './modules/main-quest/main-quest.routes.js'
 import { questsRouter } from './modules/quests/quests.routes.js'
 import { usersRouter } from './modules/users/users.routes.js'
@@ -19,3 +21,5 @@ apiRouter.use('/quests', questsRouter)
 apiRouter.use('/main-quest', mainQuestRouter)
 apiRouter.use('/weekly-quests', weeklyRouter)
 apiRouter.use('/dashboard', dashboardRouter)
+apiRouter.use('/deepwork', deepworkRouter)
+apiRouter.use('/addictions', addictionsRouter)

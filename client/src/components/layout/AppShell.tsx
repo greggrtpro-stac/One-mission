@@ -22,6 +22,7 @@ import { logout } from '@/api/auth'
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay'
 import { XpToasts } from '@/components/gamification/XpToasts'
 import { Avatar, Logo } from '@/components/ui'
+import { DeepWorkTicker } from '@/features/deepwork/DeepWorkTicker'
 import { cn } from '@/lib/cn'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -204,9 +205,10 @@ export function AppShell() {
         </main>
       </div>
 
-      {/* Effets de gamification globaux */}
+      {/* Effets de gamification globaux + timer DeepWork actif sur toutes les pages */}
       <XpToasts />
       <LevelUpOverlay />
+      <DeepWorkTicker />
     </div>
   )
 }
