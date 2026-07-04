@@ -6,6 +6,7 @@ import { deepworkApi } from '@/api/deepwork'
 import { Badge, Button, Card, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { PHASE_LABELS, phaseDurationMs, useDeepWorkStore } from '@/stores/deepwork'
+import { applyXpResult } from '@/stores/xpFx'
 import { DeepWorkSettingsModal } from './DeepWorkSettingsModal'
 import { TimerRing } from './TimerRing'
 
@@ -134,7 +135,8 @@ export function DeepWorkPage() {
   function handleSkip() {
     const record = useDeepWorkStore.getState().skipPhase()
     if (record) {
-      void deepworkApi.recordSession(record).then(() => {
+      void deepworkApi.recordSession(record).then((result) => {
+        applyXpResult(result.xp)
         void queryClient.invalidateQueries({ queryKey: ['deepwork'] })
       })
     }

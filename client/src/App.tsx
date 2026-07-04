@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { bootstrapSession } from '@/api/auth'
 import { AppShell } from '@/components/layout/AppShell'
-import { ComingSoon } from '@/components/layout/ComingSoon'
 import { GuestOnly, RequireAuth } from '@/components/layout/guards'
 import { AddictionsPage } from '@/features/addictions/AddictionsPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
@@ -11,8 +10,13 @@ import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { DeepWorkPage } from '@/features/deepwork/DeepWorkPage'
+import { JournalPage } from '@/features/journal/JournalPage'
 import { LandingPage } from '@/features/landing/LandingPage'
+import { LeaderboardPage } from '@/features/leaderboard/LeaderboardPage'
+import { ProfilePage } from '@/features/profile/ProfilePage'
 import { QuestsPage } from '@/features/quests/QuestsPage'
+import { SettingsPage } from '@/features/settings/SettingsPage'
+import { StatsPage } from '@/features/stats/StatsPage'
 import { WeeklyPage } from '@/features/weekly/WeeklyPage'
 
 const router = createBrowserRouter([
@@ -38,11 +42,11 @@ const router = createBrowserRouter([
           { path: 'weekly', element: <WeeklyPage /> },
           { path: 'deepwork', element: <DeepWorkPage /> },
           { path: 'addictions', element: <AddictionsPage /> },
-          { path: 'journal', element: <ComingSoon title="Journal" /> },
-          { path: 'leaderboard', element: <ComingSoon title="Classement" /> },
-          { path: 'stats', element: <ComingSoon title="Statistiques" /> },
-          { path: 'profile', element: <ComingSoon title="Profil" /> },
-          { path: 'settings', element: <ComingSoon title="Paramètres" /> },
+          { path: 'journal', element: <JournalPage /> },
+          { path: 'leaderboard', element: <LeaderboardPage /> },
+          { path: 'stats', element: <StatsPage /> },
+          { path: 'profile', element: <ProfilePage /> },
+          { path: 'settings', element: <SettingsPage /> },
         ],
       },
     ],

@@ -195,9 +195,10 @@ model Addiction {
   userId       String
   name         String
   icon         String? // nom d'icône lucide
-  startDate    DateTime // début de la série en cours
-  relapseCount Int      @default(0)
-  bestStreak   Int      @default(0) // record en jours
+  startDate     DateTime // début de la série en cours
+  relapseCount  Int      @default(0)
+  bestStreak    Int      @default(0) // record en jours
+  lastMilestone Int      @default(0) // dernier palier (jours) déjà récompensé en XP
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -23,6 +23,41 @@ export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   EPIC: 'Très difficile',
 }
 
+// ── DeepWork ─────────────────────────────────────────────────
+
+/** 1 XP par minute de focus terminée, plafonnée par session. */
+export const DEEPWORK_XP_PER_MINUTE = 1
+export const DEEPWORK_XP_MAX_PER_SESSION = 200
+
+export function deepworkSessionXp(durationSeconds: number): number {
+  return Math.min(
+    DEEPWORK_XP_MAX_PER_SESSION,
+    Math.round((durationSeconds / 60) * DEEPWORK_XP_PER_MINUTE),
+  )
+}
+
+// ── Addictions ───────────────────────────────────────────────
+
+/** Paliers d'abstinence (jours) et XP versée quand on les franchit. */
+export const ADDICTION_MILESTONES = [1, 3, 7, 14, 30, 60, 90, 180, 365] as const
+
+export const XP_BY_MILESTONE: Record<number, number> = {
+  1: 10,
+  3: 15,
+  7: 25,
+  14: 40,
+  30: 75,
+  60: 100,
+  90: 150,
+  180: 200,
+  365: 300,
+}
+
+// ── Journal ──────────────────────────────────────────────────
+
+/** XP versée à la première écriture du journal du jour. */
+export const JOURNAL_ENTRY_XP = 15
+
 /** XP nécessaire pour passer du niveau `level` au niveau `level + 1`. */
 export function xpForLevel(level: number): number {
   return Math.round(100 * Math.pow(level, 1.5))

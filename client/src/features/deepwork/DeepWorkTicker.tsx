@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { deepworkApi } from '@/api/deepwork'
 import { useDeepWorkStore } from '@/stores/deepwork'
+import { applyXpResult } from '@/stores/xpFx'
 
 /**
  * Monté dans l'AppShell : fait vivre le timer DeepWork sur toutes les pages
@@ -18,7 +19,8 @@ export function DeepWorkTicker() {
 
       const record = state.completePhase()
       if (record) {
-        void deepworkApi.recordSession(record).then(() => {
+        void deepworkApi.recordSession(record).then((result) => {
+          applyXpResult(result.xp)
           void queryClient.invalidateQueries({ queryKey: ['deepwork'] })
           void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
         })

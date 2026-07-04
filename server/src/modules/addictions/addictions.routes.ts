@@ -1,4 +1,9 @@
-import type { AddictionDto } from '@one-mission/shared'
+import {
+  ADDICTION_MILESTONES,
+  XP_BY_MILESTONE,
+  type AddictionDto,
+  type XpResult,
+} from '@one-mission/shared'
 import type { Request, Response } from 'express'
 import { Router } from 'express'
 import { z } from 'zod'
@@ -7,6 +12,7 @@ import { prisma } from '../../lib/prisma.js'
 import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
+import { awardXp } from '../gamification/gamification.service.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -59,13 +65,45 @@ async function getOwned(userId: string, id: string): Promise<AddictionWithRelaps
 export const addictionsRouter = Router()
 addictionsRouter.use(requireAuth)
 
+/**
+ * Paliers franchis depuis la dernière récompense : versés paresseusement
+ * à la consultation de la liste (le serveur reste l'autorité XP).
+ */
+async function settleMilestones(
+  userId: string,
+  list: AddictionWithRelapses[],
+): Promise<XpResult | null> {
+  const now = Date.now()
+  let totalXp = 0
+
+  for (const addiction of list) {
+    const days = Math.max(0, Math.floor((now - addiction.startDate.getTime()) / DAY_MS))
+    const reached = ADDICTION_MILESTONES.filter(
+      (m) => m <= days && m > addiction.lastMilestone,
+    )
+    if (reached.length === 0) continue
+
+    totalXp += reached.reduce((sum, m) => sum + (XP_BY_MILESTONE[m] ?? 0), 0)
+    const highest = reached[reached.length - 1]!
+    await prisma.addiction.update({
+      where: { id: addiction.id },
+      data: { lastMilestone: highest },
+    })
+    addiction.lastMilestone = highest
+  }
+
+  return totalXp > 0 ? awardXp(userId, totalXp) : null
+}
+
 addictionsRouter.get('/', async (req: Request, res: Response) => {
+  const userId = getUserId(req)
   const list = await prisma.addiction.findMany({
-    where: { userId: getUserId(req) },
+    where: { userId },
     orderBy: { createdAt: 'asc' },
     include: withRelapses,
   })
-  res.json({ addictions: list.map(toDto) })
+  const xp = await settleMilestones(userId, list)
+  res.json({ addictions: list.map(toDto), xp })
 })
 
 addictionsRouter.post('/', validateBody(createSchema), async (req: Request, res: Response) => {
@@ -126,6 +164,7 @@ addictionsRouter.post(
           startDate: now,
           relapseCount: { increment: 1 },
           bestStreak: Math.max(owned.bestStreak, streakLost),
+          lastMilestone: 0, // la nouvelle série pourra re-franchir les paliers
         },
         include: withRelapses,
       }),

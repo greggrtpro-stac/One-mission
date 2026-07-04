@@ -152,6 +152,76 @@ export interface AddictionDto {
   relapses: RelapseDto[]
 }
 
+// ── Journal ──────────────────────────────────────────────────
+
+/** Analyse IA d'une entrée de journal (générée par Claude). */
+export interface JournalAnalysis {
+  /** Note de la journée sur 10. */
+  score: number
+  summary: string
+  positives: string[]
+  improvements: string[]
+  advice: string[]
+}
+
+export interface JournalEntryDto {
+  id: string
+  /** Jour de l'entrée (YYYY-MM-DD). */
+  date: string
+  content: string
+  aiScore: number | null
+  aiAnalysis: JournalAnalysis | null
+  updatedAt: string
+}
+
+// ── Classement ───────────────────────────────────────────────
+
+export interface LeaderboardEntry {
+  rank: number
+  username: string
+  avatarUrl: string | null
+  level: number
+  totalXp: number
+  currentStreak: number
+  /** Vrai pour la ligne du joueur connecté. */
+  isMe: boolean
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[]
+  /** Ligne du joueur connecté (même s'il est hors du top). */
+  me: LeaderboardEntry
+  totalPlayers: number
+}
+
+// ── Statistiques ─────────────────────────────────────────────
+
+export interface DailyStat {
+  /** Jour local (YYYY-MM-DD). */
+  date: string
+  questsDone: number
+  xpFromQuests: number
+  focusSeconds: number
+}
+
+export interface CategoryStat {
+  category: string
+  count: number
+}
+
+export interface StatsOverview {
+  days: DailyStat[]
+  categories: CategoryStat[]
+  totals: {
+    questsDone: number
+    weeklyCompletions: number
+    focusSeconds: number
+    deepworkSessions: number
+    journalEntries: number
+    relapsesAvoidedDays: number
+  }
+}
+
 export interface MainQuestDto {
   id: string
   title: string

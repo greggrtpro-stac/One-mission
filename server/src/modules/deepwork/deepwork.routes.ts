@@ -1,8 +1,10 @@
 import {
   DEFAULT_DEEPWORK_SETTINGS,
+  deepworkSessionXp,
   type DeepWorkSessionDto,
   type DeepWorkSettings,
   type DeepWorkStats,
+  type XpResult,
 } from '@one-mission/shared'
 import type { Request, Response } from 'express'
 import { Router } from 'express'
@@ -12,6 +14,7 @@ import { prisma } from '../../lib/prisma.js'
 import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { validateBody } from '../../middleware/validate.js'
 import { currentWeekStart } from '../../utils/week.js'
+import { awardXp } from '../gamification/gamification.service.js'
 
 const createSessionSchema = z.object({
   startedAt: z.iso.datetime(),
@@ -49,16 +52,25 @@ deepworkRouter.post(
   '/sessions',
   validateBody(createSessionSchema),
   async (req: Request, res: Response) => {
+    const userId = getUserId(req)
     const session = await prisma.deepWorkSession.create({
       data: {
-        userId: getUserId(req),
+        userId,
         startedAt: new Date(req.body.startedAt),
         duration: req.body.duration,
         kind: req.body.kind,
         completed: req.body.completed,
       },
     })
-    res.status(201).json({ session: toSessionDto(session) })
+
+    // Seul un focus mené à son terme rapporte de l'XP (1 XP/min, plafonné).
+    let xp: XpResult | null = null
+    if (session.kind === 'FOCUS' && session.completed) {
+      const amount = deepworkSessionXp(session.duration)
+      if (amount > 0) xp = await awardXp(userId, amount)
+    }
+
+    res.status(201).json({ session: toSessionDto(session), xp })
   },
 )
 

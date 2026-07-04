@@ -1,9 +1,10 @@
 import type { AddictionDto } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Flame, Pencil, Plus, ShieldCheck, Trash2, Trophy } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { addictionsApi } from '@/api/deepwork'
 import { Badge, Button, Card, Spinner } from '@/components/ui'
+import { applyXpResult } from '@/stores/xpFx'
 import { AddictionFormModal } from './AddictionFormModal'
 import { RelapseModal } from './RelapseModal'
 import { streakDays } from './streak'
@@ -104,6 +105,12 @@ export function AddictionsPage() {
   const [relapsing, setRelapsing] = useState<AddictionDto | null>(null)
 
   const query = useQuery({ queryKey: ['addictions'], queryFn: addictionsApi.list })
+
+  // XP des paliers franchis, versée par le serveur à la consultation.
+  const milestoneXp = query.data?.xp
+  useEffect(() => {
+    if (milestoneXp) applyXpResult(milestoneXp)
+  }, [milestoneXp])
 
   const remove = useMutation({
     mutationFn: (a: AddictionDto) => addictionsApi.remove(a.id),

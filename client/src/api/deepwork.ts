@@ -3,6 +3,7 @@ import type {
   DeepWorkSessionDto,
   DeepWorkSettings,
   DeepWorkStats,
+  XpResult,
 } from '@one-mission/shared'
 import { http } from './http'
 
@@ -14,13 +15,17 @@ export const deepworkApi = {
     duration: number
     kind: string
     completed: boolean
-  }) => http.post<{ session: DeepWorkSessionDto }>('/api/deepwork/sessions', payload),
+  }) =>
+    http.post<{ session: DeepWorkSessionDto; xp: XpResult | null }>(
+      '/api/deepwork/sessions',
+      payload,
+    ),
   saveSettings: (settings: DeepWorkSettings) =>
     http.put<{ settings: DeepWorkSettings }>('/api/deepwork/settings', settings),
 }
 
 export const addictionsApi = {
-  list: () => http.get<{ addictions: AddictionDto[] }>('/api/addictions'),
+  list: () => http.get<{ addictions: AddictionDto[]; xp: XpResult | null }>('/api/addictions'),
   create: (payload: { name: string; icon?: string | null; startDate?: string }) =>
     http.post<{ addiction: AddictionDto }>('/api/addictions', payload),
   update: (id: string, payload: { name?: string; icon?: string | null; startDate?: string }) =>
