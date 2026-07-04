@@ -10,6 +10,7 @@ import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { LandingPage } from '@/features/landing/LandingPage'
+import { QuestsPage } from '@/features/quests/QuestsPage'
 
 const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
@@ -30,7 +31,7 @@ const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, element: <DashboardPage /> },
-          { path: 'quests', element: <ComingSoon title="Quêtes" /> },
+          { path: 'quests', element: <QuestsPage /> },
           { path: 'weekly', element: <ComingSoon title="Quêtes hebdomadaires" /> },
           { path: 'deepwork', element: <ComingSoon title="DeepWork" /> },
           { path: 'addictions', element: <ComingSoon title="Addictions" /> },

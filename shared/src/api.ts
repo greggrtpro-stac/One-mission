@@ -30,4 +30,48 @@ export interface XpResult {
   currentXp: number
   xpForNext: number
   leveledUp: boolean
+  currentStreak: number
+  longestStreak: number
+}
+
+// ── Quêtes ───────────────────────────────────────────────────
+
+export interface QuestDto {
+  id: string
+  title: string
+  description: string | null
+  category: string
+  priority: string
+  difficulty: string
+  /** Format YYYY-MM-DD. */
+  dueDate: string
+  /** Format HH:mm, facultatif. */
+  dueTime: string | null
+  status: string
+  progress: number
+  xpAwarded: number
+  completedAt: string | null
+  createdAt: string
+}
+
+/** Résultat d'une action sur une quête pouvant rapporter/retirer de l'XP. */
+export interface QuestActionResult {
+  quest: QuestDto
+  xp: XpResult | null
+}
+
+export interface MainQuestMilestone {
+  id: string
+  title: string
+  done: boolean
+}
+
+export interface MainQuestDto {
+  id: string
+  title: string
+  description: string | null
+  targetDate: string | null
+  progress: number
+  milestones: MainQuestMilestone[]
+  createdAt: string
 }

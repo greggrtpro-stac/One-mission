@@ -19,6 +19,8 @@ import {
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { logout } from '@/api/auth'
+import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay'
+import { XpToasts } from '@/components/gamification/XpToasts'
 import { Avatar, Logo } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { useAuthStore } from '@/stores/auth'
@@ -201,6 +203,10 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      {/* Effets de gamification globaux */}
+      <XpToasts />
+      <LevelUpOverlay />
     </div>
   )
 }
