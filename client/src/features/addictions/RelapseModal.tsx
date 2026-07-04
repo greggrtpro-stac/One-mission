@@ -21,8 +21,10 @@ export function RelapseModal({ addiction, onClose }: RelapseModalProps) {
 
   const mutation = useMutation({
     mutationFn: (a: AddictionDto) => addictionsApi.relapse(a.id, note.trim() || null),
-    onSuccess: () => {
+    onSuccess: (_result, a) => {
       void queryClient.invalidateQueries({ queryKey: ['addictions'] })
+      // Le coach dépose automatiquement un message après une rechute.
+      void queryClient.invalidateQueries({ queryKey: ['coach', a.id] })
       onClose()
     },
   })

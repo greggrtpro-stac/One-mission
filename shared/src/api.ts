@@ -148,8 +148,25 @@ export interface AddictionDto {
   startDate: string
   relapseCount: number
   bestStreak: number
+  /** Le coach IA est autorisé à lire le journal. */
+  shareJournal: boolean
   createdAt: string
   relapses: RelapseDto[]
+}
+
+// ── Coach IA (addictions) ────────────────────────────────────
+
+export interface CoachMessageDto {
+  id: string
+  role: 'USER' | 'ASSISTANT'
+  content: string
+  createdAt: string
+}
+
+export interface CoachThread {
+  messages: CoachMessageDto[]
+  aiAvailable: boolean
+  shareJournal: boolean
 }
 
 // ── Journal ──────────────────────────────────────────────────

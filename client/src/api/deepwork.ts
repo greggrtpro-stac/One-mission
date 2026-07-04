@@ -28,8 +28,10 @@ export const addictionsApi = {
   list: () => http.get<{ addictions: AddictionDto[]; xp: XpResult | null }>('/api/addictions'),
   create: (payload: { name: string; icon?: string | null; startDate?: string }) =>
     http.post<{ addiction: AddictionDto }>('/api/addictions', payload),
-  update: (id: string, payload: { name?: string; icon?: string | null; startDate?: string }) =>
-    http.patch<{ addiction: AddictionDto }>(`/api/addictions/${id}`, payload),
+  update: (
+    id: string,
+    payload: { name?: string; icon?: string | null; startDate?: string; shareJournal?: boolean },
+  ) => http.patch<{ addiction: AddictionDto }>(`/api/addictions/${id}`, payload),
   remove: (id: string) => http.delete<null>(`/api/addictions/${id}`),
   relapse: (id: string, note?: string | null) =>
     http.post<{ addiction: AddictionDto }>(`/api/addictions/${id}/relapse`, { note: note ?? null }),

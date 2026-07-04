@@ -13,6 +13,8 @@ import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
 import { awardXp } from '../gamification/gamification.service.js'
+import { coachRouter } from './coach.routes.js'
+import { relapseMessage, welcomeMessage } from './coach.service.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -23,7 +25,10 @@ const createSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
-const updateSchema = createSchema.partial()
+const updateSchema = createSchema.partial().extend({
+  /** Autorise le coach IA à lire les entrées du journal. */
+  shareJournal: z.boolean().optional(),
+})
 
 const relapseSchema = z.object({
   note: z.string().max(500).nullable().optional(),
@@ -39,6 +44,7 @@ function toDto(a: AddictionWithRelapses): AddictionDto {
     startDate: a.startDate.toISOString(),
     relapseCount: a.relapseCount,
     bestStreak: a.bestStreak,
+    shareJournal: a.shareJournal,
     createdAt: a.createdAt.toISOString(),
     relapses: a.relapses.map((r) => ({
       id: r.id,
@@ -114,6 +120,10 @@ addictionsRouter.post('/', validateBody(createSchema), async (req: Request, res:
       name: req.body.name,
       icon: req.body.icon ?? null,
       startDate,
+      // Chaque addiction naît avec son coach : le fil s'ouvre sur son accueil.
+      coachMessages: {
+        create: { role: 'ASSISTANT', content: welcomeMessage(req.body.name) },
+      },
     },
     include: withRelapses,
   })
@@ -128,6 +138,7 @@ addictionsRouter.patch('/:id', validateBody(updateSchema), async (req: Request, 
       ...(req.body.name !== undefined && { name: req.body.name }),
       ...(req.body.icon !== undefined && { icon: req.body.icon }),
       ...(req.body.startDate !== undefined && { startDate: new Date(req.body.startDate) }),
+      ...(req.body.shareJournal !== undefined && { shareJournal: req.body.shareJournal }),
     },
     include: withRelapses,
   })
@@ -168,7 +179,17 @@ addictionsRouter.post(
         },
         include: withRelapses,
       }),
+      // Le coach tend la main de lui-même, sans jugement ni appel IA.
+      prisma.coachMessage.create({
+        data: {
+          addictionId: owned.id,
+          role: 'ASSISTANT',
+          content: relapseMessage(streakLost),
+        },
+      }),
     ])
     res.json({ addiction: toDto(addiction) })
   },
 )
+
+addictionsRouter.use('/:id/coach', coachRouter)

@@ -51,6 +51,11 @@ enum SessionKind {
   LONG_BREAK
 }
 
+enum CoachRole {
+  USER
+  ASSISTANT
+}
+
 // ── Utilisateurs & auth ──────────────────────────────────────
 
 model User {
@@ -199,13 +204,28 @@ model Addiction {
   relapseCount  Int      @default(0)
   bestStreak    Int      @default(0) // record en jours
   lastMilestone Int      @default(0) // dernier palier (jours) déjà récompensé en XP
+  shareJournal  Boolean  @default(false) // le coach IA peut lire le journal
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  relapses Relapse[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relapses      Relapse[]
+  coachMessages CoachMessage[]
 
   @@index([userId])
+}
+
+/// Conversation avec le coach IA — un fil par addiction.
+model CoachMessage {
+  id          String    @id @default(cuid())
+  addictionId String
+  role        CoachRole
+  content     String    @db.Text
+  createdAt   DateTime  @default(now())
+
+  addiction Addiction @relation(fields: [addictionId], references: [id], onDelete: Cascade)
+
+  @@index([addictionId, createdAt])
 }
 
 model Relapse {

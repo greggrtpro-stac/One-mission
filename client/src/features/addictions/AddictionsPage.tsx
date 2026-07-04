@@ -1,11 +1,12 @@
 import type { AddictionDto } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Flame, Pencil, Plus, ShieldCheck, Trash2, Trophy } from 'lucide-react'
+import { Flame, MessageCircleHeart, Pencil, Plus, ShieldCheck, Trash2, Trophy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { addictionsApi } from '@/api/deepwork'
 import { Badge, Button, Card, Spinner } from '@/components/ui'
 import { applyXpResult } from '@/stores/xpFx'
 import { AddictionFormModal } from './AddictionFormModal'
+import { CoachDrawer } from './CoachDrawer'
 import { RelapseModal } from './RelapseModal'
 import { streakDays } from './streak'
 
@@ -21,11 +22,13 @@ function AddictionCard({
   onRelapse,
   onEdit,
   onDelete,
+  onCoach,
 }: {
   addiction: AddictionDto
   onRelapse: (a: AddictionDto) => void
   onEdit: (a: AddictionDto) => void
   onDelete: (a: AddictionDto) => void
+  onCoach: (a: AddictionDto) => void
 }) {
   const days = streakDays(addiction.startDate)
   const best = Math.max(addiction.bestStreak, days)
@@ -89,8 +92,11 @@ function AddictionCard({
         )}
       </div>
 
-      <div className="mt-4 border-t border-line pt-4">
-        <Button variant="outline" size="sm" className="w-full" onClick={() => onRelapse(addiction)}>
+      <div className="mt-4 flex gap-2 border-t border-line pt-4">
+        <Button size="sm" className="flex-1" onClick={() => onCoach(addiction)}>
+          <MessageCircleHeart size={15} /> Coach IA
+        </Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => onRelapse(addiction)}>
           J'ai rechuté
         </Button>
       </div>
@@ -103,6 +109,7 @@ export function AddictionsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<AddictionDto | undefined>(undefined)
   const [relapsing, setRelapsing] = useState<AddictionDto | null>(null)
+  const [coaching, setCoaching] = useState<AddictionDto | null>(null)
 
   const query = useQuery({ queryKey: ['addictions'], queryFn: addictionsApi.list })
 
@@ -176,6 +183,7 @@ export function AddictionsPage() {
               key={a.id}
               addiction={a}
               onRelapse={setRelapsing}
+              onCoach={setCoaching}
               onEdit={(addiction) => {
                 setEditing(addiction)
                 setFormOpen(true)
@@ -188,6 +196,7 @@ export function AddictionsPage() {
 
       <AddictionFormModal open={formOpen} onClose={() => setFormOpen(false)} addiction={editing} />
       <RelapseModal addiction={relapsing} onClose={() => setRelapsing(null)} />
+      <CoachDrawer addiction={coaching} onClose={() => setCoaching(null)} />
     </div>
   )
 }

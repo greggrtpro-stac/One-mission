@@ -1,11 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk'
 import type { JournalAnalysis } from '@one-mission/shared'
-import { env } from '../../config/env.js'
+import { anthropic, CLAUDE_MODEL, aiAvailable } from '../../lib/claude.js'
 import { ApiError } from '../../middleware/error.js'
 
-const anthropic = env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null
-
-export const aiAvailable = anthropic !== null
+export { aiAvailable }
 
 const SYSTEM_PROMPT = `Tu es le coach bienveillant de One Mission, une application de développement personnel gamifiée.
 On te confie l'entrée de journal d'un joueur pour la journée écoulée.
@@ -38,7 +35,7 @@ export async function analyzeEntry(dateLabel: string, content: string): Promise<
   }
 
   const response = await anthropic.messages.create({
-    model: 'claude-opus-4-8',
+    model: CLAUDE_MODEL,
     max_tokens: 2048,
     system: SYSTEM_PROMPT,
     output_config: { format: { type: 'json_schema', schema: ANALYSIS_SCHEMA } },
