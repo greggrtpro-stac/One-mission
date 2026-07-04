@@ -23,8 +23,9 @@ const priorityDot: Record<Priority, string> = {
 interface QuestCardProps {
   quest: QuestDto
   onToggle: (quest: QuestDto) => void
-  onEdit: (quest: QuestDto) => void
-  onDelete: (quest: QuestDto) => void
+  /** Absents = carte en lecture seule (dashboard). */
+  onEdit?: (quest: QuestDto) => void
+  onDelete?: (quest: QuestDto) => void
   disabled?: boolean
 }
 
@@ -102,22 +103,28 @@ export function QuestCard({ quest, onToggle, onEdit, onDelete, disabled }: Quest
       </div>
 
       {/* Actions */}
-      <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 max-lg:opacity-100">
-        <button
-          onClick={() => onEdit(quest)}
-          aria-label="Modifier"
-          className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-        >
-          <Pencil size={15} />
-        </button>
-        <button
-          onClick={() => onDelete(quest)}
-          aria-label="Supprimer"
-          className="rounded-lg p-2 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-        >
-          <Trash2 size={15} />
-        </button>
-      </div>
+      {(onEdit || onDelete) && (
+        <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 max-lg:opacity-100">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(quest)}
+              aria-label="Modifier"
+              className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+            >
+              <Pencil size={15} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(quest)}
+              aria-label="Supprimer"
+              className="rounded-lg p-2 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
+        </div>
+      )}
     </motion.div>
   )
 }

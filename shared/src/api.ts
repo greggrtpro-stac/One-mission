@@ -66,6 +66,39 @@ export interface MainQuestMilestone {
   done: boolean
 }
 
+export interface WeeklyQuestDto {
+  id: string
+  title: string
+  description: string | null
+  difficulty: string
+  sortOrder: number
+  /** Complétée cette semaine ? (ISO datetime ou null) */
+  completedAt: string | null
+  totalCompletions: number
+  /** Lundi de la semaine courante (YYYY-MM-DD). */
+  weekStart: string
+}
+
+export interface WeeklyQuestActionResult {
+  weeklyQuest: WeeklyQuestDto
+  xp: XpResult | null
+}
+
+export interface QuoteDto {
+  text: string
+  author: string | null
+}
+
+/** Résumé léger du tableau de bord (le reste vient des endpoints dédiés). */
+export interface DashboardSummary {
+  quote: QuoteDto
+  deepWorkTodaySeconds: number
+  /** Meilleure série d'addiction en cours (jours), null si aucune addiction suivie. */
+  addictionDays: number | null
+  journalWrittenToday: boolean
+  questsDoneToday: number
+}
+
 export interface MainQuestDto {
   id: string
   title: string

@@ -11,6 +11,7 @@ import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { LandingPage } from '@/features/landing/LandingPage'
 import { QuestsPage } from '@/features/quests/QuestsPage'
+import { WeeklyPage } from '@/features/weekly/WeeklyPage'
 
 const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
@@ -32,7 +33,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardPage /> },
           { path: 'quests', element: <QuestsPage /> },
-          { path: 'weekly', element: <ComingSoon title="Quêtes hebdomadaires" /> },
+          { path: 'weekly', element: <WeeklyPage /> },
           { path: 'deepwork', element: <ComingSoon title="DeepWork" /> },
           { path: 'addictions', element: <ComingSoon title="Addictions" /> },
           { path: 'journal', element: <ComingSoon title="Journal" /> },

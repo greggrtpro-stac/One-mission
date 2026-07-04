@@ -9,11 +9,11 @@
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file=../.env dist/index.js",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx --env-file=../.env prisma/seed.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx --env-file=../.env prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
