@@ -8,6 +8,7 @@ import { leaderboardRouter } from './modules/leaderboard/leaderboard.routes.js'
 import { mainQuestRouter } from './modules/main-quest/main-quest.routes.js'
 import { questsRouter } from './modules/quests/quests.routes.js'
 import { statsRouter } from './modules/stats/stats.routes.js'
+import { subscriptionsRouter } from './modules/subscriptions/subscriptions.routes.js'
 import { usersRouter } from './modules/users/users.routes.js'
 import { weeklyRouter } from './modules/weekly-quests/weekly.routes.js'
 
@@ -29,3 +30,4 @@ apiRouter.use('/addictions', addictionsRouter)
 apiRouter.use('/journal', journalRouter)
 apiRouter.use('/leaderboard', leaderboardRouter)
 apiRouter.use('/stats', statsRouter)
+apiRouter.use('/subscriptions', subscriptionsRouter)

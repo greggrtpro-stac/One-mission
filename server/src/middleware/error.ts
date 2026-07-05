@@ -8,6 +8,8 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: string,
+    /** Données structurées renvoyées au client (ex. offre requise pour UPGRADE_REQUIRED). */
+    public details?: unknown,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -20,7 +22,7 @@ export function notFoundHandler(req: Request, res: Response) {
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ApiError) {
-    res.status(err.status).json({ error: err.message, code: err.code })
+    res.status(err.status).json({ error: err.message, code: err.code, details: err.details })
     return
   }
   if (err instanceof ZodError) {

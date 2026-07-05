@@ -1,9 +1,12 @@
 import type { JournalEntryDto } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpenText, Check, Lightbulb, Sparkles, ThumbsUp, TrendingUp } from 'lucide-react'
+import { BookOpenText, Check, Lightbulb, Lock, Sparkles, ThumbsUp, TrendingUp } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { journalApi } from '@/api/journal'
 import { Badge, Button, Card, Spinner, Textarea } from '@/components/ui'
+import { PlanBadge } from '@/features/subscription/PlanBadge'
+import { usePlan } from '@/features/subscription/useSubscription'
 import { cn } from '@/lib/cn'
 import { todayIso } from '@/lib/dates'
 import { applyXpResult } from '@/stores/xpFx'
@@ -108,6 +111,9 @@ export function JournalPage() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['journal'] }),
   })
 
+  const { has: hasPlan } = usePlan()
+  const hasJournalAi = hasPlan('journal_ai')
+
   const entries = listQuery.data?.entries ?? []
   const isToday = selectedDate === todayIso()
   const dirty = content.trim() !== (entry?.content ?? '').trim()
@@ -203,7 +209,18 @@ export function JournalPage() {
                 )}
 
                 <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-                  {aiAvailable && entry && !entry.aiAnalysis && (
+                  {aiAvailable && entry && !entry.aiAnalysis && !hasJournalAi && (
+                    <Link to="/app/level-up" className="flex items-center gap-2">
+                      <span className="hidden text-xs text-muted sm:inline">
+                        Analyse IA réservée à
+                      </span>
+                      <PlanBadge plan="PRO" />
+                      <Button variant="secondary">
+                        <Lock size={14} /> Débloquer
+                      </Button>
+                    </Link>
+                  )}
+                  {aiAvailable && entry && !entry.aiAnalysis && hasJournalAi && (
                     <Button
                       variant="secondary"
                       onClick={() => analyze.mutate()}

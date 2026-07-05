@@ -13,6 +13,7 @@ import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
 import { awardXp } from '../gamification/gamification.service.js'
+import { requireFeature } from '../subscriptions/entitlements.middleware.js'
 import { aiAvailable, analyzeEntry } from './journal.service.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -89,8 +90,8 @@ journalRouter.delete('/:date', async (req: Request, res: Response) => {
   res.status(204).end()
 })
 
-/** Lance l'analyse IA de l'entrée (Claude), puis la stocke sur l'entrée. */
-journalRouter.post('/:date/analyze', async (req: Request, res: Response) => {
+/** Lance l'analyse IA de l'entrée (Claude), puis la stocke sur l'entrée. Réservé aux offres Pro et Max. */
+journalRouter.post('/:date/analyze', requireFeature('journal_ai'), async (req: Request, res: Response) => {
   const userId = getUserId(req)
   const { date, label } = parseDateParam(req.params.date)
 

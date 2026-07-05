@@ -37,6 +37,7 @@ import {
 } from 'recharts'
 import { statsApi } from '@/api/stats'
 import { Avatar, Badge, Card, ProgressBar, Spinner } from '@/components/ui'
+import { FeatureGate } from '@/features/subscription/FeatureGate'
 import { cn } from '@/lib/cn'
 import { formatDayFr } from '@/lib/dates'
 import { useAuthStore } from '@/stores/auth'
@@ -473,58 +474,60 @@ export function ProfilePage() {
           <h2 className="mt-8 flex items-center gap-2 text-sm font-semibold tracking-wide text-muted uppercase">
             <TrendingUp size={15} className="text-accent" /> Graphiques
           </h2>
-          <div className="mt-3 grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Évolution de l'XP (30 jours)">
-              <XpAreaChart points={xpSeries} />
-            </ChartCard>
-            <ChartCard title="Progression du niveau (30 jours)">
-              <LevelStepChart points={levelSeries} />
-            </ChartCard>
-            <ChartCard title="Quêtes terminées par semaine (12 semaines)">
-              <Bars
-                points={stats.weeks.map((w) => ({
-                  key: w.weekStart,
-                  label: `Semaine du ${formatDayFr(w.weekStart)}`,
-                  value: w.questsDone,
-                }))}
-                formatValue={(v) => `${v} quête${v > 1 ? 's' : ''}`}
-                startLabel={`Sem. du ${formatDayFr(stats.weeks[0]!.weekStart)}`}
-                endLabel="cette semaine"
-              />
-            </ChartCard>
-            <ChartCard title="Temps de DeepWork par jour (30 jours)">
-              <Bars
-                points={stats.days.map((d) => ({
-                  key: d.date,
-                  label: formatDayFr(d.date),
-                  value: d.focusSeconds,
-                }))}
-                formatValue={formatHours}
-                startLabel={formatDayFr(stats.days[0]!.date)}
-                endLabel="aujourd'hui"
-              />
-            </ChartCard>
-            <ChartCard title="Activité quotidienne (XP gagnée, 30 jours)">
-              <Bars
-                points={stats.days.map((d) => ({
-                  key: d.date,
-                  label: formatDayFr(d.date),
-                  value: d.xpGained,
-                }))}
-                formatValue={(v) => `${formatXp(v)} XP`}
-                startLabel={formatDayFr(stats.days[0]!.date)}
-                endLabel="aujourd'hui"
-              />
-            </ChartCard>
-            <ChartCard title="Addictions — jours sans rechute">
-              <AddictionRows addictions={stats.addictions} />
-            </ChartCard>
-          </div>
-          <div className="mt-4">
-            <ChartCard title="Répartition des quêtes terminées par catégorie">
-              <CategoryBars categories={stats.categories} />
-            </ChartCard>
-          </div>
+          <FeatureGate feature="advanced_stats">
+            <div className="mt-3 grid gap-4 lg:grid-cols-2">
+              <ChartCard title="Évolution de l'XP (30 jours)">
+                <XpAreaChart points={xpSeries} />
+              </ChartCard>
+              <ChartCard title="Progression du niveau (30 jours)">
+                <LevelStepChart points={levelSeries} />
+              </ChartCard>
+              <ChartCard title="Quêtes terminées par semaine (12 semaines)">
+                <Bars
+                  points={stats.weeks.map((w) => ({
+                    key: w.weekStart,
+                    label: `Semaine du ${formatDayFr(w.weekStart)}`,
+                    value: w.questsDone,
+                  }))}
+                  formatValue={(v) => `${v} quête${v > 1 ? 's' : ''}`}
+                  startLabel={`Sem. du ${formatDayFr(stats.weeks[0]!.weekStart)}`}
+                  endLabel="cette semaine"
+                />
+              </ChartCard>
+              <ChartCard title="Temps de DeepWork par jour (30 jours)">
+                <Bars
+                  points={stats.days.map((d) => ({
+                    key: d.date,
+                    label: formatDayFr(d.date),
+                    value: d.focusSeconds,
+                  }))}
+                  formatValue={formatHours}
+                  startLabel={formatDayFr(stats.days[0]!.date)}
+                  endLabel="aujourd'hui"
+                />
+              </ChartCard>
+              <ChartCard title="Activité quotidienne (XP gagnée, 30 jours)">
+                <Bars
+                  points={stats.days.map((d) => ({
+                    key: d.date,
+                    label: formatDayFr(d.date),
+                    value: d.xpGained,
+                  }))}
+                  formatValue={(v) => `${formatXp(v)} XP`}
+                  startLabel={formatDayFr(stats.days[0]!.date)}
+                  endLabel="aujourd'hui"
+                />
+              </ChartCard>
+              <ChartCard title="Addictions — jours sans rechute">
+                <AddictionRows addictions={stats.addictions} />
+              </ChartCard>
+            </div>
+            <div className="mt-4">
+              <ChartCard title="Répartition des quêtes terminées par catégorie">
+                <CategoryBars categories={stats.categories} />
+              </ChartCard>
+            </div>
+          </FeatureGate>
 
           {/* Succès */}
           <h2 className="mt-8 flex items-center gap-2 text-sm font-semibold tracking-wide text-muted uppercase">

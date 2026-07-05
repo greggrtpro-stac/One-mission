@@ -10,7 +10,8 @@
     "start": "node --env-file=../.env dist/index.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx --env-file=../.env prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "prisma": {
     "seed": "tsx --env-file=../.env prisma/seed.ts"

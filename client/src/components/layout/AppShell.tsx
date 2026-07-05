@@ -6,6 +6,7 @@ import {
   LogOut,
   Menu,
   Moon,
+  Rocket,
   Settings,
   ShieldCheck,
   Sun,
@@ -22,6 +23,8 @@ import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay'
 import { XpToasts } from '@/components/gamification/XpToasts'
 import { Avatar, Logo } from '@/components/ui'
 import { DeepWorkTicker } from '@/features/deepwork/DeepWorkTicker'
+import { PlanBadge } from '@/features/subscription/PlanBadge'
+import { usePlan } from '@/features/subscription/useSubscription'
 import { cn } from '@/lib/cn'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -35,6 +38,7 @@ const NAV = [
   { to: '/app/addictions', label: 'Addictions', icon: ShieldCheck },
   { to: '/app/journal', label: 'Journal', icon: BookOpenText },
   { to: '/app/leaderboard', label: 'Classement', icon: Trophy },
+  { to: '/app/level-up', label: 'Level Up', icon: Rocket },
 ]
 
 const NAV_BOTTOM = [
@@ -77,6 +81,7 @@ function NavItem({
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const user = useAuthStore((s) => s.user)
+  const { plan } = usePlan()
   const navigate = useNavigate()
 
   async function handleLogout() {
@@ -108,7 +113,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             <Avatar src={user.avatarUrl} name={user.username} size={34} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{user.username}</p>
-              <p className="text-xs text-muted">Niveau {user.level}</p>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <p className="text-xs text-muted">Niveau {user.level}</p>
+                <PlanBadge plan={plan} className="py-0" />
+              </div>
             </div>
             <button
               onClick={handleLogout}

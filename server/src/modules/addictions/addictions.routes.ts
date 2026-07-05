@@ -13,6 +13,7 @@ import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
 import { awardXp } from '../gamification/gamification.service.js'
+import { requireFeature } from '../subscriptions/entitlements.middleware.js'
 import { coachRouter } from './coach.routes.js'
 import { relapseMessage, welcomeMessage } from './coach.service.js'
 
@@ -70,6 +71,8 @@ async function getOwned(userId: string, id: string): Promise<AddictionWithRelaps
 
 export const addictionsRouter = Router()
 addictionsRouter.use(requireAuth)
+// Le suivi d'addictions est réservé aux offres Pro et Max.
+addictionsRouter.use(requireFeature('addictions'))
 
 /**
  * Paliers franchis depuis la dernière récompense : versés paresseusement

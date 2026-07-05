@@ -11,6 +11,7 @@ import {
 import { Link } from 'react-router-dom'
 import { api } from '@/api/http'
 import { Badge, Button, Card, Logo, LogoMark, ProgressBar } from '@/components/ui'
+import { PricingSection } from '@/features/subscription/PricingSection'
 
 const features = [
   {
@@ -73,6 +74,9 @@ export function LandingPage() {
       <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Logo size={30} />
         <nav className="flex items-center gap-2">
+          <a href="#pricing" className="mr-2 hidden text-sm font-medium text-muted hover:text-ink sm:inline">
+            Tarifs
+          </a>
           <Link to="/login">
             <Button variant="ghost">Se connecter</Button>
           </Link>
@@ -187,6 +191,8 @@ export function LandingPage() {
             ))}
           </div>
         </section>
+
+        <PricingSection />
       </main>
 
       {/* ── Pied de page ── */}

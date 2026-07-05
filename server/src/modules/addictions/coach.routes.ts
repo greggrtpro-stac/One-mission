@@ -8,6 +8,7 @@ import { prisma } from '../../lib/prisma.js'
 import { getUserId } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
+import { requireFeature } from '../subscriptions/entitlements.middleware.js'
 import { askCoach, buildCoachContext } from './coach.service.js'
 
 const sendSchema = z.object({
@@ -34,6 +35,8 @@ async function getOwnedAddiction(userId: string, id: string) {
 
 /** Monté sur /api/addictions/:id/coach (mergeParams pour récupérer :id). */
 export const coachRouter = Router({ mergeParams: true })
+// Le coach IA est réservé à l'offre Max (requireAuth hérité du routeur parent).
+coachRouter.use(requireFeature('coach_ai'))
 
 coachRouter.get('/', async (req: Request, res: Response) => {
   const addiction = await getOwnedAddiction(getUserId(req), req.params.id as string)

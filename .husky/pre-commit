@@ -1,0 +1,2 @@
+echo "Vérification avant commit : typecheck (shared/server/client) + lint..."
+npm run verify

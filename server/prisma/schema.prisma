@@ -56,6 +56,36 @@ enum CoachRole {
   ASSISTANT
 }
 
+enum PlanTier {
+  STARTER
+  PRO
+  MAX
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionEventType {
+  CREATED
+  UPGRADED
+  DOWNGRADED
+  CYCLE_CHANGED
+  RENEWED
+  CANCELED
+  REACTIVATED
+  EXPIRED
+}
+
 // ── Utilisateurs & auth ──────────────────────────────────────
 
 model User {
@@ -101,6 +131,53 @@ model User {
   journalEntries   JournalEntry[]
   refreshTokens    RefreshToken[]
   passwordResets   PasswordResetToken[]
+  subscription     Subscription?
+}
+
+// ── Abonnements ──────────────────────────────────────────────
+
+/// Un abonnement par utilisateur, créé paresseusement (STARTER par défaut).
+/// Les champs stripe* restent null tant que le paiement n'est pas branché :
+/// l'intégration Stripe viendra les remplir sans toucher au reste du modèle.
+model Subscription {
+  id     String             @id @default(cuid())
+  userId String             @unique
+  plan   PlanTier           @default(STARTER)
+  status SubscriptionStatus @default(ACTIVE)
+
+  billingCycle      BillingCycle @default(MONTHLY)
+  startedAt         DateTime     @default(now()) // début de l'abonnement en cours
+  currentPeriodEnd  DateTime? // date de renouvellement (gérée par Stripe plus tard)
+  cancelAtPeriodEnd Boolean      @default(false)
+  trialEndsAt       DateTime? // périodes d'essai (préparé, pas encore utilisé)
+
+  // Réservé à l'intégration paiement (Stripe)
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+  promoCode            String? // codes promotionnels (préparé)
+  discountPercent      Int? // remises (préparé)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events SubscriptionEvent[]
+}
+
+/// Historique des changements d'abonnement (audit + affichage Level Up).
+model SubscriptionEvent {
+  id             String                @id @default(cuid())
+  subscriptionId String
+  type           SubscriptionEventType
+  fromPlan       PlanTier?
+  toPlan         PlanTier
+  note           String?
+  createdAt      DateTime              @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, createdAt])
 }
 
 model RefreshToken {

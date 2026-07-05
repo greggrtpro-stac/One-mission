@@ -1,11 +1,14 @@
-import type { AddictionDto, CoachMessageDto } from '@one-mission/shared'
+import { getFeature, type AddictionDto, type CoachMessageDto } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BookOpenText, HeartHandshake, Send, X } from 'lucide-react'
+import { BookOpenText, HeartHandshake, Lock, Send, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { addictionsApi } from '@/api/deepwork'
 import { coachApi } from '@/api/coach'
-import { Spinner } from '@/components/ui'
+import { Button, Spinner } from '@/components/ui'
+import { PlanBadge } from '@/features/subscription/PlanBadge'
+import { usePlan } from '@/features/subscription/useSubscription'
 import { cn } from '@/lib/cn'
 
 /** Suggestions envoyées telles quelles : le prompt système sait y répondre. */
@@ -62,11 +65,13 @@ export function CoachDrawer({ addiction, onClose }: CoachDrawerProps) {
   const [draft, setDraft] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const addictionId = addiction?.id ?? null
+  const { has: hasPlan } = usePlan()
+  const hasCoachAi = hasPlan('coach_ai')
 
   const thread = useQuery({
     queryKey: ['coach', addictionId],
     queryFn: () => coachApi.thread(addictionId!),
-    enabled: addictionId !== null,
+    enabled: addictionId !== null && hasCoachAi,
   })
 
   const send = useMutation({
@@ -167,7 +172,26 @@ export function CoachDrawer({ addiction, onClose }: CoachDrawerProps) {
 
             {/* Fil de messages */}
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-              {thread.isLoading ? (
+              {!hasCoachAi ? (
+                <div className="flex flex-col items-center gap-4 py-10 text-center">
+                  <span className="flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+                    <Lock size={24} />
+                  </span>
+                  <div>
+                    <h3 className="font-semibold">{getFeature('coach_ai').label}</h3>
+                    <p className="mt-1.5 max-w-xs text-sm text-muted">
+                      {getFeature('coach_ai').description}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted">Nécessite</span>
+                    <PlanBadge plan="MAX" />
+                  </div>
+                  <Link to="/app/level-up">
+                    <Button className="glow-accent">Débloquer sur Level Up</Button>
+                  </Link>
+                </div>
+              ) : thread.isLoading ? (
                 <div className="flex justify-center py-10">
                   <Spinner className="text-accent" />
                 </div>
@@ -196,7 +220,7 @@ export function CoachDrawer({ addiction, onClose }: CoachDrawerProps) {
 
             {/* Zone de saisie */}
             <footer className="border-t border-line p-3">
-              {!aiAvailable ? (
+              {!hasCoachAi ? null : !aiAvailable ? (
                 <p className="rounded-xl bg-warning-soft px-3.5 py-2.5 text-sm text-warning">
                   Le coach IA n'est pas configuré sur ce serveur (clé API manquante). L'historique
                   reste consultable.

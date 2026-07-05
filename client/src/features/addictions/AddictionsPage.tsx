@@ -4,6 +4,7 @@ import { Flame, MessageCircleHeart, Pencil, Plus, ShieldCheck, Trash2, Trophy } 
 import { useEffect, useState } from 'react'
 import { addictionsApi } from '@/api/deepwork'
 import { Badge, Button, Card, Spinner } from '@/components/ui'
+import { FeatureGate } from '@/features/subscription/FeatureGate'
 import { applyXpResult } from '@/stores/xpFx'
 import { AddictionFormModal } from './AddictionFormModal'
 import { CoachDrawer } from './CoachDrawer'
@@ -134,69 +135,71 @@ export function AddictionsPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Addictions</h1>
-          <p className="mt-1 text-sm text-muted">
-            Chaque jour sans craquer allonge ta série. La rechute fait partie du chemin : on la
-            note, on comprend, on repart.
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditing(undefined)
-            setFormOpen(true)
-          }}
-        >
-          <Plus size={16} /> Nouvelle addiction
-        </Button>
-      </div>
-
-      {query.isLoading ? (
-        <div className="flex justify-center py-16">
-          <Spinner className="text-accent" />
-        </div>
-      ) : addictions.length === 0 ? (
-        <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-line-strong p-10 text-center">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">
-            <ShieldCheck size={24} />
-          </span>
-          <p className="font-semibold">Aucune addiction suivie</p>
-          <p className="max-w-sm text-sm text-muted">
-            Choisis un démon à affronter — écrans, sucre, cigarette… — et regarde ta série de jours
-            sans craquer grandir.
-          </p>
+      <FeatureGate feature="addictions">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Addictions</h1>
+            <p className="mt-1 text-sm text-muted">
+              Chaque jour sans craquer allonge ta série. La rechute fait partie du chemin : on la
+              note, on comprend, on repart.
+            </p>
+          </div>
           <Button
-            size="sm"
             onClick={() => {
               setEditing(undefined)
               setFormOpen(true)
             }}
           >
-            <Plus size={14} /> Suivre ma première addiction
+            <Plus size={16} /> Nouvelle addiction
           </Button>
         </div>
-      ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {addictions.map((a) => (
-            <AddictionCard
-              key={a.id}
-              addiction={a}
-              onRelapse={setRelapsing}
-              onCoach={setCoaching}
-              onEdit={(addiction) => {
-                setEditing(addiction)
+
+        {query.isLoading ? (
+          <div className="flex justify-center py-16">
+            <Spinner className="text-accent" />
+          </div>
+        ) : addictions.length === 0 ? (
+          <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-line-strong p-10 text-center">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+              <ShieldCheck size={24} />
+            </span>
+            <p className="font-semibold">Aucune addiction suivie</p>
+            <p className="max-w-sm text-sm text-muted">
+              Choisis un démon à affronter — écrans, sucre, cigarette… — et regarde ta série de
+              jours sans craquer grandir.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(undefined)
                 setFormOpen(true)
               }}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      )}
+            >
+              <Plus size={14} /> Suivre ma première addiction
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {addictions.map((a) => (
+              <AddictionCard
+                key={a.id}
+                addiction={a}
+                onRelapse={setRelapsing}
+                onCoach={setCoaching}
+                onEdit={(addiction) => {
+                  setEditing(addiction)
+                  setFormOpen(true)
+                }}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )}
 
-      <AddictionFormModal open={formOpen} onClose={() => setFormOpen(false)} addiction={editing} />
-      <RelapseModal addiction={relapsing} onClose={() => setRelapsing(null)} />
-      <CoachDrawer addiction={coaching} onClose={() => setCoaching(null)} />
+        <AddictionFormModal open={formOpen} onClose={() => setFormOpen(false)} addiction={editing} />
+        <RelapseModal addiction={relapsing} onClose={() => setRelapsing(null)} />
+        <CoachDrawer addiction={coaching} onClose={() => setCoaching(null)} />
+      </FeatureGate>
     </div>
   )
 }
