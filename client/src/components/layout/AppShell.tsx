@@ -99,7 +99,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      {user && <SidebarProfileCard user={user} />}
+      {user && <SidebarProfileCard user={user} onNavigate={onNavigate} />}
     </div>
   )
 }
