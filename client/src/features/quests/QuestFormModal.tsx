@@ -11,7 +11,8 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import { questsApi, type QuestPayload } from '@/api/quests'
-import { Button, Input, Modal, Select, Textarea } from '@/components/ui'
+import { Button, Input, Modal, Select, Textarea, Toggle } from '@/components/ui'
+import { fromInputs } from '@/features/planning/time'
 import { todayIso } from '@/lib/dates'
 
 interface QuestFormModalProps {
@@ -34,9 +35,17 @@ const emptyForm = (): QuestPayload => ({
 export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<QuestPayload>(emptyForm())
+  const [addToPlanning, setAddToPlanning] = useState(false)
+  const [planStart, setPlanStart] = useState('09:00')
+  const [planEnd, setPlanEnd] = useState('10:00')
+  const [planError, setPlanError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
+    setAddToPlanning(false)
+    setPlanStart('09:00')
+    setPlanEnd('10:00')
+    setPlanError(null)
     setForm(
       quest
         ? {
@@ -52,17 +61,29 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
     )
   }, [open, quest])
 
+  const withPlanning = !quest && addToPlanning
+
   const mutation = useMutation({
     mutationFn: () => {
       const payload: QuestPayload = {
         ...form,
         description: form.description?.trim() || null,
         dueTime: form.dueTime || null,
+        ...(withPlanning && {
+          planning: {
+            startAt: fromInputs(form.dueDate, planStart).toISOString(),
+            endAt: fromInputs(form.dueDate, planEnd).toISOString(),
+          },
+        }),
       }
       return quest ? questsApi.update(quest.id, payload) : questsApi.create(payload)
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['quests'] })
+      if (withPlanning) {
+        void queryClient.invalidateQueries({ queryKey: ['planning'] })
+        void queryClient.invalidateQueries({ queryKey: ['planning-stats'] })
+      }
       onClose()
     },
   })
@@ -73,6 +94,11 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (withPlanning && fromInputs(form.dueDate, planEnd) <= fromInputs(form.dueDate, planStart)) {
+      setPlanError("L'heure de fin doit être après l'heure de début")
+      return
+    }
+    setPlanError(null)
     mutation.mutate()
   }
 
@@ -147,6 +173,36 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
             onChange={(e) => set('dueTime', e.target.value)}
           />
         </div>
+
+        {!quest && (
+          <div className="rounded-xl border border-line bg-surface-2 px-3.5 py-2.5">
+            <Toggle
+              checked={addToPlanning}
+              onChange={setAddToPlanning}
+              label="Ajouter au Planning"
+              description="Réserve un créneau dans ton calendrier pour cette quête."
+            />
+            {addToPlanning && (
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <Input
+                  label="Début"
+                  type="time"
+                  required
+                  value={planStart}
+                  onChange={(e) => setPlanStart(e.target.value)}
+                />
+                <Input
+                  label="Fin"
+                  type="time"
+                  required
+                  error={planError ?? undefined}
+                  value={planEnd}
+                  onChange={(e) => setPlanEnd(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {mutation.error && (
           <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">

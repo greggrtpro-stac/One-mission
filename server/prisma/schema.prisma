@@ -56,6 +56,12 @@ enum CoachRole {
   ASSISTANT
 }
 
+enum PlanningEventStatus {
+  PLANNED
+  DONE
+  CANCELLED
+}
+
 enum PlanTier {
   STARTER
   PRO
@@ -126,6 +132,7 @@ model User {
   quests           Quest[]
   mainQuest        MainQuest?
   weeklyQuests     WeeklyQuest[]
+  planningEvents   PlanningEvent[]
   deepWorkSessions DeepWorkSession[]
   addictions       Addiction[]
   journalEntries   JournalEntry[]
@@ -225,10 +232,44 @@ model Quest {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planningEvent PlanningEvent?
 
   @@index([userId, dueDate])
   @@index([userId, status])
+}
+
+// ── Planning ─────────────────────────────────────────────────
+
+/// Événement du calendrier hebdomadaire. Peut être lié à une quête (questId) :
+/// le statut de l'événement est alors synchronisé avec celui de la quête
+/// (complétion, décomplétion). Si la quête est supprimée, l'événement redevient
+/// un événement libre (questId → null).
+model PlanningEvent {
+  id          String              @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  notes       String?             @db.Text
+  color       String              @default("#6366F1") // hex "#RRGGBB"
+  category    QuestCategory       @default(AUTRE)
+  priority    Priority            @default(MEDIUM)
+  startAt     DateTime // UTC
+  endAt       DateTime // UTC, strictement après startAt
+  status      PlanningEventStatus @default(PLANNED)
+  questId     String?             @unique
+
+  // Rappels — architecture prête, l'envoi réel (push/mail) viendra plus tard.
+  reminderMinutes Int? // minutes avant startAt, null = pas de rappel
+  reminderSentAt  DateTime? // idempotence de l'envoi futur
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startAt])
 }
 
 model MainQuest {

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   BookOpenText,
   CalendarCheck,
+  CalendarDays,
   LayoutDashboard,
   Menu,
   Moon,
@@ -31,6 +32,7 @@ const NAV = [
   { to: '/app', label: 'Tableau de bord', icon: LayoutDashboard, end: true },
   { to: '/app/quests', label: 'Quêtes', icon: Swords },
   { to: '/app/weekly', label: 'Hebdomadaires', icon: CalendarCheck },
+  { to: '/app/planning', label: 'Planning', icon: CalendarDays },
   { to: '/app/deepwork', label: 'DeepWork', icon: Timer },
   { to: '/app/addictions', label: 'Addictions', icon: ShieldCheck },
   { to: '/app/journal', label: 'Journal', icon: BookOpenText },

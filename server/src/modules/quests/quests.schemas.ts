@@ -20,6 +20,21 @@ export const questCategoryEnum = z.enum([
 export const priorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
 export const difficultyEnum = z.enum(['TRIVIAL', 'EASY', 'MEDIUM', 'HARD', 'EPIC'])
 
+/** Créneau Planning optionnel à la création d'une quête (« Ajouter au Planning »). */
+const questPlanningSchema = z
+  .object({
+    startAt: z.iso.datetime(),
+    endAt: z.iso.datetime(),
+    color: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur attendue au format #RRGGBB')
+      .optional(),
+  })
+  .refine((v) => new Date(v.endAt) > new Date(v.startAt), {
+    message: "L'heure de fin doit être après l'heure de début",
+    path: ['endAt'],
+  })
+
 export const createQuestSchema = z.object({
   title: z.string().min(1, 'Titre requis').max(120),
   description: z.string().max(2000).nullable().optional(),
@@ -28,6 +43,7 @@ export const createQuestSchema = z.object({
   difficulty: difficultyEnum.default('MEDIUM'),
   dueDate: dateSchema,
   dueTime: timeSchema.nullable().optional(),
+  planning: questPlanningSchema.nullable().optional(),
 })
 
 export const updateQuestSchema = z.object({

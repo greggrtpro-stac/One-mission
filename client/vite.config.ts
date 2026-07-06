@@ -15,7 +15,9 @@ export default defineConfig({
     // (sinon le navigateur pointe sur une vieille instance et rien ne s'affiche).
     strictPort: true,
     proxy: {
-      '/api': 'http://localhost:4000',
+      // Surchargeable pour lancer une seconde instance (worktree, tests)
+      // sans entrer en collision avec le serveur de dev habituel.
+      '/api': process.env.VITE_PROXY_TARGET ?? 'http://localhost:4000',
     },
   },
 })

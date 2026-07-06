@@ -11,6 +11,8 @@ export interface QuestPayload {
   difficulty: string
   dueDate: string
   dueTime?: string | null
+  /** Créneau optionnel : la quête est aussi ajoutée au Planning (ISO datetimes). */
+  planning?: { startAt: string; endAt: string } | null
 }
 
 export const questsApi = {

@@ -6,6 +6,7 @@ import { deepworkRouter } from './modules/deepwork/deepwork.routes.js'
 import { journalRouter } from './modules/journal/journal.routes.js'
 import { leaderboardRouter } from './modules/leaderboard/leaderboard.routes.js'
 import { mainQuestRouter } from './modules/main-quest/main-quest.routes.js'
+import { planningRouter } from './modules/planning/planning.routes.js'
 import { questsRouter } from './modules/quests/quests.routes.js'
 import { statsRouter } from './modules/stats/stats.routes.js'
 import { subscriptionsRouter } from './modules/subscriptions/subscriptions.routes.js'
@@ -24,6 +25,7 @@ apiRouter.use('/users', usersRouter)
 apiRouter.use('/quests', questsRouter)
 apiRouter.use('/main-quest', mainQuestRouter)
 apiRouter.use('/weekly-quests', weeklyRouter)
+apiRouter.use('/planning', planningRouter)
 apiRouter.use('/dashboard', dashboardRouter)
 apiRouter.use('/deepwork', deepworkRouter)
 apiRouter.use('/addictions', addictionsRouter)

@@ -11,6 +11,11 @@ async function getOwnedQuest(userId: string, questId: string): Promise<Quest> {
   return quest
 }
 
+/** Reflète l'état de la quête sur son événement Planning lié (s'il existe). */
+async function syncPlanningEvent(userId: string, questId: string, status: 'PLANNED' | 'DONE') {
+  await prisma.planningEvent.updateMany({ where: { userId, questId }, data: { status } })
+}
+
 export async function listQuests(userId: string): Promise<Quest[]> {
   return prisma.quest.findMany({
     where: { userId },
@@ -29,19 +34,41 @@ export async function createQuest(
     difficulty: string
     dueDate: string
     dueTime?: string | null
+    /** Créneau optionnel : la quête apparaît aussi dans le Planning. */
+    planning?: { startAt: string; endAt: string; color?: string } | null
   },
 ): Promise<Quest> {
-  return prisma.quest.create({
-    data: {
-      userId,
-      title: input.title,
-      description: input.description ?? null,
-      category: input.category as Quest['category'],
-      priority: input.priority as Quest['priority'],
-      difficulty: input.difficulty as Quest['difficulty'],
-      dueDate: new Date(input.dueDate),
-      dueTime: input.dueTime ?? null,
-    },
+  return prisma.$transaction(async (tx) => {
+    const quest = await tx.quest.create({
+      data: {
+        userId,
+        title: input.title,
+        description: input.description ?? null,
+        category: input.category as Quest['category'],
+        priority: input.priority as Quest['priority'],
+        difficulty: input.difficulty as Quest['difficulty'],
+        dueDate: new Date(input.dueDate),
+        dueTime: input.dueTime ?? null,
+      },
+    })
+
+    if (input.planning) {
+      await tx.planningEvent.create({
+        data: {
+          userId,
+          questId: quest.id,
+          title: input.title,
+          description: input.description ?? null,
+          category: input.category as Quest['category'],
+          priority: input.priority as Quest['priority'],
+          startAt: new Date(input.planning.startAt),
+          endAt: new Date(input.planning.endAt),
+          ...(input.planning.color && { color: input.planning.color }),
+        },
+      })
+    }
+
+    return quest
   })
 }
 
@@ -66,6 +93,7 @@ export async function updateQuest(
   let xp = null
   if (quest.status === 'DONE' && input.status && input.status !== 'CANCELLED') {
     xp = await awardXp(userId, -quest.xpAwarded)
+    await syncPlanningEvent(userId, quest.id, 'PLANNED')
   }
 
   const updated = await prisma.quest.update({
@@ -104,6 +132,7 @@ export async function completeQuest(userId: string, questId: string): Promise<Qu
   const updated = await getOwnedQuest(userId, questId)
   if (count === 0) return { quest: toQuestDto(updated), xp: null }
 
+  await syncPlanningEvent(userId, questId, 'DONE')
   const xp = await awardXp(userId, xpAmount)
   return { quest: toQuestDto(updated), xp }
 }
@@ -118,6 +147,7 @@ export async function uncompleteQuest(userId: string, questId: string): Promise<
     where: { id: quest.id },
     data: { status: 'TODO', progress: 0, completedAt: null, xpAwarded: 0 },
   })
+  await syncPlanningEvent(userId, questId, 'PLANNED')
   return { quest: toQuestDto(updated), xp }
 }
 

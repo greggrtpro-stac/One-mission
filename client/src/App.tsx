@@ -14,6 +14,7 @@ import { DeepWorkPage } from '@/features/deepwork/DeepWorkPage'
 import { JournalPage } from '@/features/journal/JournalPage'
 import { LandingPage } from '@/features/landing/LandingPage'
 import { LeaderboardPage } from '@/features/leaderboard/LeaderboardPage'
+import { PlanningPage } from '@/features/planning/PlanningPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { QuestsPage } from '@/features/quests/QuestsPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
               { index: true, element: <DashboardPage /> },
               { path: 'quests', element: <QuestsPage /> },
               { path: 'weekly', element: <WeeklyPage /> },
+              { path: 'planning', element: <PlanningPage /> },
               { path: 'deepwork', element: <DeepWorkPage /> },
               { path: 'addictions', element: <AddictionsPage /> },
               { path: 'journal', element: <JournalPage /> },
