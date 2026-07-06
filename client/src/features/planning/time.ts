@@ -64,14 +64,23 @@ export function isoWeekNumber(date: Date): number {
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
 }
 
-/** « 6 – 12 juillet 2026 » ou « 28 sept. – 4 oct. 2026 » à cheval sur deux mois. */
+/**
+ * « 6 juillet – 12 juillet 2026 », « 27 juillet – 2 août 2026 » à cheval sur
+ * deux mois, « 29 décembre 2025 – 4 janvier 2026 » à cheval sur deux années.
+ */
 export function formatWeekRange(weekStart: Date): string {
   const end = addDays(weekStart, 6)
-  const sameMonth = weekStart.getMonth() === end.getMonth()
-  const startLabel = sameMonth
-    ? String(weekStart.getDate())
-    : weekStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-  const endLabel = end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const sameYear = weekStart.getFullYear() === end.getFullYear()
+  const startLabel = weekStart.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
+  const endLabel = end.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
   return `${startLabel} – ${endLabel}`
 }
 

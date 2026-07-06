@@ -5,7 +5,7 @@ import {
 } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { planningApi } from '@/api/planning'
 import { Button, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -89,12 +89,6 @@ export function PlanningPage() {
       void queryClient.invalidateQueries({ queryKey: ['quests'] })
     },
   })
-
-  const monthLabel = useMemo(() => {
-    // Le mois « dominant » de la semaine affichée (celui du jeudi).
-    const pivot = addDays(weekStart, 3)
-    return pivot.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-  }, [weekStart])
 
   function openCreateDefault() {
     const today = new Date()
@@ -186,12 +180,10 @@ export function PlanningPage() {
           </button>
         </div>
 
+        {/* Titre de la semaine affichée (pas la date du jour) : il suit la navigation. */}
         <p className="ml-1 min-w-0 text-sm">
-          <span className="font-semibold capitalize">{monthLabel}</span>
-          <span className="text-muted">
-            {' '}
-            · {formatWeekRange(weekStart)} · Semaine {isoWeekNumber(weekStart)}
-          </span>
+          <span className="font-semibold">Semaine {isoWeekNumber(weekStart)}</span>
+          <span className="text-muted"> • {formatWeekRange(weekStart)}</span>
         </p>
 
         <div className="flex-1" />
