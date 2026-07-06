@@ -128,6 +128,21 @@ export function WeeklyPage() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['weekly-quests'] }),
   })
 
+  const resetWeek = useMutation({
+    mutationFn: () => weeklyApi.reset(),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['weekly-quests'] }),
+  })
+
+  function handleResetWeek() {
+    if (
+      window.confirm(
+        'Démarrer une nouvelle semaine ? Toutes les quêtes seront décochées (les quêtes complétées sont ajoutées à l’historique).',
+      )
+    ) {
+      resetWeek.mutate()
+    }
+  }
+
   function handleReorder(next: WeeklyQuestDto[]) {
     setItems(next)
     if (reorderTimer.current) clearTimeout(reorderTimer.current)
@@ -153,17 +168,30 @@ export function WeeklyPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Quêtes hebdomadaires</h1>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-            <RotateCcw size={13} /> Réinitialisées automatiquement chaque lundi.
+            <RotateCcw size={13} /> Permanentes — réinitialise-les quand tu démarres une nouvelle
+            semaine.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(undefined)
-            setFormOpen(true)
-          }}
-        >
-          <Plus size={16} /> Nouvelle quête hebdo
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {items.length > 0 && (
+            <Button
+              variant="secondary"
+              onClick={handleResetWeek}
+              disabled={doneCount === 0 || resetWeek.isPending}
+              loading={resetWeek.isPending}
+            >
+              <RotateCcw size={16} /> Nouvelle semaine
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              setEditing(undefined)
+              setFormOpen(true)
+            }}
+          >
+            <Plus size={16} /> Nouvelle quête hebdo
+          </Button>
+        </div>
       </div>
 
       {items.length > 0 && (
@@ -189,7 +217,8 @@ export function WeeklyPage() {
           </span>
           <p className="font-semibold">Aucune quête hebdomadaire</p>
           <p className="max-w-sm text-sm text-muted">
-            Crée tes rituels de la semaine : ils reviendront automatiquement chaque lundi.
+            Crée tes rituels de la semaine : ils restent en place, à toi de les relancer avec «
+            Nouvelle semaine ».
           </p>
           <Button
             size="sm"

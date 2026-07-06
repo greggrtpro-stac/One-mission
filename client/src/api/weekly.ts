@@ -19,6 +19,7 @@ export const weeklyApi = {
     http.patch<{ weeklyQuest: WeeklyQuestDto }>(`/api/weekly-quests/${id}`, payload),
   remove: (id: string) => http.delete<null>(`/api/weekly-quests/${id}`),
   reorder: (ids: string[]) => http.put<null>('/api/weekly-quests/reorder', { ids }),
+  reset: () => http.post<{ weeklyQuests: WeeklyQuestDto[] }>('/api/weekly-quests/reset'),
   complete: (id: string) =>
     http.post<WeeklyQuestActionResult>(`/api/weekly-quests/${id}/complete`),
   uncomplete: (id: string) =>

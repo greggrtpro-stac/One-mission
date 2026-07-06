@@ -31,6 +31,11 @@ weeklyRouter.post('/', validateBody(createSchema), async (req: Request, res: Res
   res.status(201).json({ weeklyQuest: weekly.toWeeklyDto(wq) })
 })
 
+weeklyRouter.post('/reset', async (req: Request, res: Response) => {
+  const list = await weekly.resetWeek(getUserId(req))
+  res.json({ weeklyQuests: list.map(weekly.toWeeklyDto) })
+})
+
 weeklyRouter.put('/reorder', validateBody(reorderSchema), async (req: Request, res: Response) => {
   await weekly.reorderWeekly(getUserId(req), req.body.ids)
   res.status(204).end()

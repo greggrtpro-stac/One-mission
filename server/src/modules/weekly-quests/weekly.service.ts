@@ -24,19 +24,19 @@ export function toWeeklyDto(wq: WeeklyQuest): WeeklyQuestDto {
 }
 
 /**
- * Réinitialisation paresseuse : à chaque lecture, toute quête dont la semaine
- * de référence est passée est remise à zéro (l'historique cumulé est conservé).
- * Aucun cron nécessaire — fiable même après un arrêt du serveur.
+ * Réinitialisation manuelle (bouton « Nouvelle semaine ») : décoche toutes les
+ * quêtes actives et incrémente l'historique de celles qui étaient complétées.
+ * Aucun reset automatique — les coches restent en place tant que l'utilisateur
+ * ne le demande pas.
  */
-async function resetOutdatedWeeks(userId: string): Promise<void> {
+export async function resetWeek(userId: string): Promise<WeeklyQuest[]> {
   const weekStart = currentWeekStart()
-  const outdated = await prisma.weeklyQuest.findMany({
-    where: { userId, isActive: true, weekStart: { lt: weekStart } },
+  const quests = await prisma.weeklyQuest.findMany({
+    where: { userId, isActive: true },
   })
-  if (outdated.length === 0) return
 
   await prisma.$transaction(
-    outdated.map((wq) =>
+    quests.map((wq) =>
       prisma.weeklyQuest.update({
         where: { id: wq.id },
         data: {
@@ -47,10 +47,10 @@ async function resetOutdatedWeeks(userId: string): Promise<void> {
       }),
     ),
   )
+  return listWeekly(userId)
 }
 
 export async function listWeekly(userId: string): Promise<WeeklyQuest[]> {
-  await resetOutdatedWeeks(userId)
   return prisma.weeklyQuest.findMany({
     where: { userId, isActive: true },
     orderBy: { sortOrder: 'asc' },
@@ -125,7 +125,6 @@ export async function completeWeekly(
   userId: string,
   id: string,
 ): Promise<WeeklyQuestActionResult> {
-  await resetOutdatedWeeks(userId)
   const wq = await getOwned(userId, id)
   if (wq.completedAt) return { weeklyQuest: toWeeklyDto(wq), xp: null }
 
@@ -141,7 +140,6 @@ export async function uncompleteWeekly(
   userId: string,
   id: string,
 ): Promise<WeeklyQuestActionResult> {
-  await resetOutdatedWeeks(userId)
   const wq = await getOwned(userId, id)
   if (!wq.completedAt) return { weeklyQuest: toWeeklyDto(wq), xp: null }
 
