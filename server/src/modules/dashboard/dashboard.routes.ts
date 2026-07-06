@@ -33,7 +33,8 @@ dashboardRouter.get('/', async (req: Request, res: Response) => {
     }),
     prisma.addiction.findMany({ where: { userId }, select: { startDate: true } }),
     prisma.journalEntry.findFirst({ where: { userId, date: todayUtc }, select: { id: true } }),
-    prisma.quest.count({ where: { userId, status: 'DONE', completedAt: { gte: startOfDay } } }),
+    // Historique des accomplissements : reste juste même après le reset quotidien.
+    prisma.questCompletion.count({ where: { userId, completedAt: { gte: startOfDay } } }),
   ])
 
   const addictionDays =

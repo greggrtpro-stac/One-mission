@@ -20,6 +20,7 @@ import { MainQuestCard } from '@/features/quests/MainQuestCard'
 import { QuestCard } from '@/features/quests/QuestCard'
 import { cn } from '@/lib/cn'
 import { relativeDay } from '@/lib/dates'
+import { useMidnightRefresh } from '@/lib/useMidnightRefresh'
 import { useAuthStore } from '@/stores/auth'
 import { applyXpResult } from '@/stores/xpFx'
 
@@ -74,6 +75,10 @@ export function DashboardPage() {
   const quests = useQuery({ queryKey: ['quests'], queryFn: questsApi.list })
   const weekly = useQuery({ queryKey: ['weekly-quests'], queryFn: weeklyApi.list })
   const mainQuest = useQuery({ queryKey: ['main-quest'], queryFn: mainQuestApi.get })
+
+  // Au passage de minuit, les quêtes journalières terminées sont décochées
+  // côté serveur : on recharge le jour même si l'app est restée ouverte.
+  useMidnightRefresh(['quests', 'dashboard'])
 
   const toggleQuest = useMutation({
     mutationFn: (quest: QuestDto) =>

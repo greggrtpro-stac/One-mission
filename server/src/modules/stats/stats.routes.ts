@@ -55,10 +55,11 @@ statsRouter.get('/profile', async (req: Request, res: Response) => {
     journalEntries,
     addictions,
     categories,
-    doneQuests,
+    completions,
     sessions,
     journalRecent,
     relapsesRecent,
+    questRows,
   ] = await Promise.all([
     // Rang : même tri et même filtre de visibilité que le classement.
     prisma.user.count({
@@ -73,7 +74,9 @@ statsRouter.get('/profile', async (req: Request, res: Response) => {
     }),
     prisma.user.count({ where: { showOnLeaderboard: true } }),
     prisma.quest.count({ where: { userId } }),
-    prisma.quest.count({ where: { userId, status: 'DONE' } }),
+    // Les quêtes journalières se réinitialisent chaque jour : le total des
+    // accomplissements vit dans l'historique, pas dans le statut courant.
+    prisma.questCompletion.count({ where: { userId } }),
     prisma.mainQuest.findUnique({ where: { userId }, select: { progress: true } }),
     prisma.weeklyQuest.aggregate({ where: { userId }, _sum: { totalCompletions: true } }),
     prisma.deepWorkSession.aggregate({
@@ -86,14 +89,14 @@ statsRouter.get('/profile', async (req: Request, res: Response) => {
       where: { userId },
       select: { name: true, icon: true, startDate: true, bestStreak: true, relapseCount: true },
     }),
-    prisma.quest.groupBy({
+    prisma.questCompletion.groupBy({
       by: ['category'],
-      where: { userId, status: 'DONE' },
+      where: { userId },
       _count: { _all: true },
     }),
     // Fenêtre de 12 semaines : sert aussi aux 30 jours (inclus dedans).
-    prisma.quest.findMany({
-      where: { userId, status: 'DONE', completedAt: { gte: weeksStart } },
+    prisma.questCompletion.findMany({
+      where: { userId, completedAt: { gte: weeksStart } },
       select: { completedAt: true, xpAwarded: true },
     }),
     prisma.deepWorkSession.findMany({
@@ -107,6 +110,10 @@ statsRouter.get('/profile', async (req: Request, res: Response) => {
     prisma.relapse.findMany({
       where: { addiction: { userId }, occurredAt: { gte: daysStart } },
       select: { occurredAt: true },
+    }),
+    prisma.quest.findMany({
+      where: { userId, status: { not: 'CANCELLED' } },
+      select: { createdAt: true },
     }),
   ])
 
@@ -125,11 +132,11 @@ statsRouter.get('/profile', async (req: Request, res: Response) => {
     days.push(stat)
     dayIndex.set(stat.date, stat)
   }
-  for (const q of doneQuests) {
-    const stat = q.completedAt && dayIndex.get(localDayKey(q.completedAt))
+  for (const c of completions) {
+    const stat = dayIndex.get(localDayKey(c.completedAt))
     if (stat) {
       stat.questsDone += 1
-      stat.xpGained += q.xpAwarded
+      stat.xpGained += c.xpAwarded
     }
   }
   for (const s of sessions) {
@@ -161,9 +168,8 @@ statsRouter.get('/profile', async (req: Request, res: Response) => {
     weeks.push(stat)
     weekIndex.set(stat.weekStart, stat)
   }
-  for (const q of doneQuests) {
-    if (!q.completedAt) continue
-    const stat = weekIndex.get(localDayKey(mondayOf(q.completedAt)))
+  for (const c of completions) {
+    const stat = weekIndex.get(localDayKey(mondayOf(c.completedAt)))
     if (stat) stat.questsDone += 1
   }
 
@@ -179,6 +185,25 @@ statsRouter.get('/profile', async (req: Request, res: Response) => {
     }
   })
 
+  // ── Taux de réussite (30 derniers jours) ────────────────────
+  // Les quêtes journalières étant récurrentes, on rapporte les jours réalisés
+  // aux « jours d'opportunité » : un par quête existante et par jour depuis sa
+  // création (borné à la fenêtre de 30 jours).
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  let opportunityDays = 0
+  for (const q of questRows) {
+    const createdDay = new Date(
+      q.createdAt.getFullYear(),
+      q.createdAt.getMonth(),
+      q.createdAt.getDate(),
+    )
+    const from = createdDay > daysStart ? createdDay : daysStart
+    opportunityDays += Math.round((todayStart.getTime() - from.getTime()) / DAY_MS) + 1
+  }
+  const completions30 = completions.filter((c) => c.completedAt >= daysStart).length
+  const successRate =
+    opportunityDays > 0 ? Math.min(100, Math.round((completions30 / opportunityDays) * 100)) : 0
+
   const focusSeconds = deepwork._sum.duration ?? 0
   const daysSinceCreation = Math.max(
     1,
@@ -191,7 +216,7 @@ statsRouter.get('/profile', async (req: Request, res: Response) => {
 
     questsCreated,
     questsDone,
-    successRate: questsCreated > 0 ? Math.round((questsDone / questsCreated) * 100) : 0,
+    successRate,
     mainQuestsDone: mainQuest && mainQuest.progress >= 100 ? 1 : 0,
     weeklyCompletions: weekly._sum.totalCompletions ?? 0,
 

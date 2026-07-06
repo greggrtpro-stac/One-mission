@@ -15,6 +15,7 @@ export function toQuestDto(quest: Quest): QuestDto {
     progress: quest.progress,
     xpAwarded: quest.xpAwarded,
     completedAt: quest.completedAt?.toISOString() ?? null,
+    totalCompletions: quest.totalCompletions,
     createdAt: quest.createdAt.toISOString(),
   }
 }

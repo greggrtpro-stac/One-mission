@@ -76,7 +76,10 @@ export interface QuestDto {
   status: string
   progress: number
   xpAwarded: number
+  /** Complétion du jour en cours (remise à null par le reset quotidien). */
   completedAt: string | null
+  /** Nombre total de jours où la quête a été réalisée (historique). */
+  totalCompletions: number
   createdAt: string
 }
 
@@ -275,8 +278,9 @@ export interface ProfileStats {
   totalPlayers: number
 
   questsCreated: number
+  /** Nombre total d'accomplissements journaliers (historique, survit aux resets). */
   questsDone: number
-  /** Taux de réussite en % (quêtes terminées / quêtes créées). */
+  /** Taux de réussite en % sur 30 jours (jours réalisés / jours d'opportunité). */
   successRate: number
   mainQuestsDone: number
   weeklyCompletions: number

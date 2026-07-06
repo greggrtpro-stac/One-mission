@@ -8,7 +8,7 @@ import {
   type QuestDto,
 } from '@one-mission/shared'
 import { motion } from 'framer-motion'
-import { Check, Clock, Pencil, Trash2, Zap } from 'lucide-react'
+import { Check, Clock, Pencil, RotateCcw, Trash2, Zap } from 'lucide-react'
 import { Badge, ProgressBar } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { formatDayFr, relativeDay } from '@/lib/dates'
@@ -92,6 +92,15 @@ export function QuestCard({ quest, onToggle, onEdit, onDelete, disabled }: Quest
             {quest.dueTime && ` · ${quest.dueTime}`}
             {overdue && ' · en retard'}
           </span>
+          {quest.totalCompletions > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-faint"
+              title={`Réalisée ${quest.totalCompletions} fois au total`}
+            >
+              <RotateCcw size={12} />
+              {quest.totalCompletions}×
+            </span>
+          )}
         </div>
 
         {!done && quest.progress > 0 && (

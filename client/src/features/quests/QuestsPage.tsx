@@ -12,6 +12,7 @@ import { mainQuestApi, questsApi } from '@/api/quests'
 import { Button, Select, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { relativeDay } from '@/lib/dates'
+import { useMidnightRefresh } from '@/lib/useMidnightRefresh'
 import { applyXpResult } from '@/stores/xpFx'
 import { MainQuestCard } from './MainQuestCard'
 import { QuestCard } from './QuestCard'
@@ -28,6 +29,10 @@ export function QuestsPage() {
 
   const questsQuery = useQuery({ queryKey: ['quests'], queryFn: questsApi.list })
   const mainQuestQuery = useQuery({ queryKey: ['main-quest'], queryFn: mainQuestApi.get })
+
+  // À minuit, le serveur décoche les quêtes terminées la veille : on recharge
+  // la liste pour refléter le nouveau jour sans action de l'utilisateur.
+  useMidnightRefresh(['quests'])
 
   const toggle = useMutation({
     mutationFn: (quest: QuestDto) =>
@@ -102,7 +107,9 @@ export function QuestsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Quêtes</h1>
           <p className="mt-1 text-sm text-muted">
-            Chaque quête terminée te rapporte de l'expérience.
+            Chaque quête terminée te rapporte de l'expérience et se décoche automatiquement le
+            lendemain pour être refaite ; les quêtes non terminées restent jusqu'à leur
+            accomplissement.
           </p>
         </div>
         <Button onClick={openCreate}>
