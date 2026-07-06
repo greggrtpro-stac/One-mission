@@ -17,7 +17,6 @@ import {
   addMinutes,
   formatMinutes,
   formatWeekRange,
-  isoWeekNumber,
   startOfWeek,
   toDateInput,
 } from './time'
@@ -165,11 +164,13 @@ export function PlanningPage() {
           >
             <ChevronLeft size={16} />
           </button>
+          {/* Affiche la période de la semaine sélectionnée ; le clic recentre sur la semaine en cours. */}
           <button
             onClick={() => setWeekStart(startOfWeek(new Date()))}
-            className="rounded-lg px-2.5 py-1 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+            title="Revenir à la semaine en cours"
+            className="rounded-lg px-2.5 py-1 text-sm font-medium transition-colors hover:bg-surface-2 hover:text-accent"
           >
-            Aujourd'hui
+            {formatWeekRange(weekStart)}
           </button>
           <button
             onClick={() => setWeekStart((w) => addDays(w, 7))}
@@ -179,12 +180,6 @@ export function PlanningPage() {
             <ChevronRight size={16} />
           </button>
         </div>
-
-        {/* Titre de la semaine affichée (pas la date du jour) : il suit la navigation. */}
-        <p className="ml-1 min-w-0 text-sm">
-          <span className="font-semibold">Semaine {isoWeekNumber(weekStart)}</span>
-          <span className="text-muted"> • {formatWeekRange(weekStart)}</span>
-        </p>
 
         <div className="flex-1" />
 

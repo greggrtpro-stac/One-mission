@@ -55,33 +55,21 @@ export function fromInputs(date: string, time: string): Date {
   return new Date(y!, m! - 1, d!, h ?? 0, min ?? 0)
 }
 
-/** Numéro de semaine ISO 8601. */
-export function isoWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-}
-
 /**
- * « 6 juillet – 12 juillet 2026 », « 27 juillet – 2 août 2026 » à cheval sur
- * deux mois, « 29 décembre 2025 – 4 janvier 2026 » à cheval sur deux années.
+ * « 6 au 12 juillet », « 27 juillet au 2 août » à cheval sur deux mois.
+ * L'année n'apparaît que si la semaine affichée ne se termine pas dans
+ * l'année en cours (navigation lointaine).
  */
 export function formatWeekRange(weekStart: Date): string {
   const end = addDays(weekStart, 6)
-  const sameYear = weekStart.getFullYear() === end.getFullYear()
-  const startLabel = weekStart.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  })
-  const endLabel = end.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
-  return `${startLabel} – ${endLabel}`
+  const sameMonth =
+    weekStart.getMonth() === end.getMonth() && weekStart.getFullYear() === end.getFullYear()
+  const startLabel = sameMonth
+    ? String(weekStart.getDate())
+    : weekStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  const endLabel = end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  const yearSuffix = end.getFullYear() !== new Date().getFullYear() ? ` ${end.getFullYear()}` : ''
+  return `${startLabel} au ${endLabel}${yearSuffix}`
 }
 
 /** « 12 h 30 », « 45 min » — durées lisibles pour les statistiques. */
