@@ -12,7 +12,7 @@ const ICONS: Record<PlanTier, typeof Sparkles> = {
 const STYLES: Record<PlanTier, string> = {
   STARTER: 'bg-surface-2 text-muted',
   PRO: 'bg-accent-soft text-accent',
-  MAX: 'bg-gradient-to-r from-amber-400/20 to-orange-500/20 text-amber-500',
+  MAX: 'border border-amber-300/40 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 text-white shadow-[0_2px_14px_-3px_rgba(245,158,11,0.65)]',
 }
 
 interface PlanBadgeProps {

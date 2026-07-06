@@ -3,7 +3,6 @@ import {
   BookOpenText,
   CalendarCheck,
   LayoutDashboard,
-  LogOut,
   Menu,
   Moon,
   Rocket,
@@ -17,17 +16,15 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { logout } from '@/api/auth'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay'
 import { XpToasts } from '@/components/gamification/XpToasts'
 import { Avatar, Logo } from '@/components/ui'
 import { DeepWorkTicker } from '@/features/deepwork/DeepWorkTicker'
-import { PlanBadge } from '@/features/subscription/PlanBadge'
-import { usePlan } from '@/features/subscription/useSubscription'
 import { cn } from '@/lib/cn'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
+import { SidebarProfileCard } from './SidebarProfileCard'
 import { XpMeter } from './XpMeter'
 
 const NAV = [
@@ -81,13 +78,6 @@ function NavItem({
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const user = useAuthStore((s) => s.user)
-  const { plan } = usePlan()
-  const navigate = useNavigate()
-
-  async function handleLogout() {
-    await logout()
-    navigate('/login')
-  }
 
   return (
     <div className="flex h-full flex-col">
@@ -107,27 +97,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      {user && (
-        <div className="border-t border-line p-3">
-          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
-            <Avatar src={user.avatarUrl} name={user.username} size={34} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{user.username}</p>
-              <div className="mt-0.5 flex items-center gap-1.5">
-                <p className="text-xs text-muted">Niveau {user.level}</p>
-                <PlanBadge plan={plan} className="py-0" />
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              title="Se déconnecter"
-              className="rounded-lg p-2 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-            >
-              <LogOut size={17} />
-            </button>
-          </div>
-        </div>
-      )}
+      {user && <SidebarProfileCard user={user} />}
     </div>
   )
 }

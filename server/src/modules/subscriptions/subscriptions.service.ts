@@ -18,6 +18,43 @@ const withEvents = {
   events: { orderBy: { createdAt: 'desc' as const }, take: EVENTS_SHOWN },
 }
 
+/**
+ * Compte fondateur — reste sur l'offre Max en permanence, quoi qu'il arrive
+ * (compte pré-existant, réinitialisation de données, etc.). L'id est résolu
+ * une seule fois puis mis en cache pour ne pas re-frapper la base à chaque
+ * requête ; on ne met en cache qu'un id trouvé, jamais une absence, pour ne
+ * pas rater le compte s'il est créé après le démarrage du serveur.
+ */
+const FOUNDER_EMAIL = 'greggrt.pro@gmail.com'
+let founderUserIdCache: string | null = null
+
+async function isFounderAccount(userId: string): Promise<boolean> {
+  if (founderUserIdCache === userId) return true
+  const founder = await prisma.user.findUnique({
+    where: { email: FOUNDER_EMAIL },
+    select: { id: true },
+  })
+  if (founder) founderUserIdCache = founder.id
+  return founder?.id === userId
+}
+
+/** Corrige l'abonnement du fondateur vers Max s'il ne l'est pas déjà. */
+async function ensureFounderPlan(sub: SubscriptionWithEvents): Promise<SubscriptionWithEvents> {
+  if (sub.plan === 'MAX' && sub.status === 'ACTIVE') return sub
+  if (!(await isFounderAccount(sub.userId))) return sub
+
+  return prisma.subscription.update({
+    where: { id: sub.id },
+    data: {
+      plan: 'MAX',
+      status: 'ACTIVE',
+      cancelAtPeriodEnd: false,
+      events: { create: { type: 'UPGRADED', fromPlan: sub.plan, toPlan: 'MAX' } },
+    },
+    include: withEvents,
+  })
+}
+
 function toEventDto(e: SubscriptionEvent): SubscriptionEventDto {
   return {
     id: e.id,
@@ -51,17 +88,20 @@ export async function getOrCreateSubscription(userId: string): Promise<Subscript
     where: { userId },
     include: withEvents,
   })
-  if (existing) return rollPeriodIfNeeded(existing)
+  if (existing) return ensureFounderPlan(await rollPeriodIfNeeded(existing))
 
-  return prisma.subscription.create({
-    data: {
-      userId,
-      plan: 'STARTER',
-      status: 'ACTIVE',
-      events: { create: { type: 'CREATED', toPlan: 'STARTER' } },
-    },
-    include: withEvents,
-  })
+  const isFounder = await isFounderAccount(userId)
+  return ensureFounderPlan(
+    await prisma.subscription.create({
+      data: {
+        userId,
+        plan: isFounder ? 'MAX' : 'STARTER',
+        status: 'ACTIVE',
+        events: { create: { type: 'CREATED', toPlan: isFounder ? 'MAX' : 'STARTER' } },
+      },
+      include: withEvents,
+    }),
+  )
 }
 
 /**
@@ -91,9 +131,17 @@ async function rollPeriodIfNeeded(sub: SubscriptionWithEvents): Promise<Subscrip
 export async function getEffectivePlan(userId: string): Promise<PlanTier> {
   const sub = await prisma.subscription.findUnique({
     where: { userId },
-    select: { plan: true, status: true },
+    select: { id: true, plan: true, status: true },
   })
-  if (!sub) return 'STARTER'
+  if (!sub) return (await isFounderAccount(userId)) ? 'MAX' : 'STARTER'
+  if (sub.plan === 'MAX' && sub.status === 'ACTIVE') return 'MAX'
+  if (await isFounderAccount(userId)) {
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: { plan: 'MAX', status: 'ACTIVE', cancelAtPeriodEnd: false },
+    })
+    return 'MAX'
+  }
   return sub.status === 'ACTIVE' || sub.status === 'TRIALING' ? sub.plan : 'STARTER'
 }
 
@@ -110,6 +158,10 @@ export async function changePlan(
 
   if (current.plan === plan && current.billingCycle === billingCycle) {
     throw new ApiError(400, 'Tu es déjà sur cette offre', 'ALREADY_ON_PLAN')
+  }
+
+  if (plan !== 'MAX' && (await isFounderAccount(userId))) {
+    throw new ApiError(400, 'Ce compte dispose de l’offre Max en permanence', 'FOUNDER_LOCKED_MAX')
   }
 
   const quote = await billingProvider.changePlan({ userId, plan, billingCycle })
