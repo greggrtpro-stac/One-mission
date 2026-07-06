@@ -4,14 +4,15 @@ import {
   type QuestCategory,
 } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { planningApi } from '@/api/planning'
 import { Button, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { applyXpResult } from '@/stores/xpFx'
 import { EventModal } from './EventModal'
 import { WeekGrid } from './WeekGrid'
+import { WeekPicker } from './WeekPicker'
 import {
   addDays,
   addMinutes,
@@ -30,6 +31,8 @@ export function PlanningPage() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [fineGrid, setFineGrid] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const navRef = useRef<HTMLDivElement>(null)
 
   const weekKey = toDateInput(weekStart)
   const from = weekStart.toISOString()
@@ -156,29 +159,47 @@ export function PlanningPage() {
 
       {/* Navigation entre les semaines */}
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-1">
-          <button
-            onClick={() => setWeekStart((w) => addDays(w, -7))}
-            className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-            aria-label="Semaine précédente"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          {/* Affiche la période de la semaine sélectionnée ; le clic recentre sur la semaine en cours. */}
-          <button
-            onClick={() => setWeekStart(startOfWeek(new Date()))}
-            title="Revenir à la semaine en cours"
-            className="rounded-lg px-2.5 py-1 text-sm font-medium transition-colors hover:bg-surface-2 hover:text-accent"
-          >
-            {formatWeekRange(weekStart)}
-          </button>
-          <button
-            onClick={() => setWeekStart((w) => addDays(w, 7))}
-            className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-            aria-label="Semaine suivante"
-          >
-            <ChevronRight size={16} />
-          </button>
+        <div ref={navRef} className="relative">
+          <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-1">
+            <button
+              onClick={() => setWeekStart((w) => addDays(w, -7))}
+              className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+              aria-label="Semaine précédente"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            {/* Période de la semaine affichée ; le clic ouvre le mini-calendrier. */}
+            <button
+              onClick={() => setPickerOpen((v) => !v)}
+              title="Choisir une semaine"
+              aria-expanded={pickerOpen}
+              className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-sm font-medium transition-colors hover:bg-surface-2 hover:text-accent"
+            >
+              {formatWeekRange(weekStart)}
+              <ChevronDown
+                size={14}
+                className={cn('text-muted transition-transform', pickerOpen && 'rotate-180')}
+              />
+            </button>
+            <button
+              onClick={() => setWeekStart((w) => addDays(w, 7))}
+              className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+              aria-label="Semaine suivante"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          <WeekPicker
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            weekStart={weekStart}
+            boundaryRef={navRef}
+            onSelectWeek={(ws) => {
+              setWeekStart(ws)
+              setPickerOpen(false)
+            }}
+          />
         </div>
 
         <div className="flex-1" />
