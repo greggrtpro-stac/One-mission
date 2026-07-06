@@ -93,10 +93,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         {NAV.map((item) => (
           <NavItem key={item.to} {...item} onClick={onNavigate} />
         ))}
-        <div className="my-3 h-px bg-line" />
-        {NAV_BOTTOM.map((item) => (
-          <NavItem key={item.to} {...item} onClick={onNavigate} />
-        ))}
+        {/* Profil & Paramètres : visibles ici sur mobile uniquement — sur
+            desktop (lg+) ils passent par le menu de la carte de profil. */}
+        <div className="space-y-1 lg:hidden">
+          <div className="my-3 h-px bg-line" />
+          {NAV_BOTTOM.map((item) => (
+            <NavItem key={item.to} {...item} onClick={onNavigate} />
+          ))}
+        </div>
       </nav>
 
       {user && <SidebarProfileCard user={user} onNavigate={onNavigate} />}
