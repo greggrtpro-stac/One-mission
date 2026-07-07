@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom'
 import { bootstrapSession } from '@/api/auth'
+import { BetaBanner } from '@/components/BetaBanner'
 import { CookieBanner } from '@/components/CookieBanner'
 import { AppShell } from '@/components/layout/AppShell'
 import { GuestOnly, RequireAuth } from '@/components/layout/guards'
@@ -9,10 +10,11 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
 import { LandingPage } from '@/features/landing/LandingPage'
 
-/** Racine : les routes + la bannière cookies, présente sur tout le site. */
+/** Racine : bandeau bêta + routes + bannière cookies, présents sur tout le site. */
 function Root() {
   return (
     <>
+      <BetaBanner />
       <Outlet />
       <CookieBanner />
     </>
@@ -127,6 +129,12 @@ const router = createBrowserRouter([
               },
               // Les statistiques vivent désormais sur le Profil.
               { path: 'stats', element: <Navigate to="/app/profile" replace /> },
+              {
+                path: 'changelog',
+                lazy: async () => ({
+                  Component: (await import('@/features/changelog/ChangelogPage')).ChangelogPage,
+                }),
+              },
               {
                 path: 'level-up',
                 lazy: async () => ({

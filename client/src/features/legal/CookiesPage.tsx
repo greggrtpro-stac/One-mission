@@ -27,6 +27,13 @@ const TRACKERS = [
     duration: '13 mois maximum',
     category: 'Essentiel',
   },
+  {
+    name: 'om-beta-banner',
+    type: 'localStorage',
+    purpose: 'Ne pas réafficher le bandeau bêta une fois refermé.',
+    duration: "Jusqu'à suppression par toi",
+    category: 'Essentiel',
+  },
 ]
 
 export function CookiesPage() {
@@ -110,8 +117,7 @@ export function CookiesPage() {
       <LegalSection title="Traceurs utilisés">
         <p>
           {`${TRACKERS.length} traceurs sont utilisés, tous essentiels au fonctionnement du site
-          (exemptés de consentement). Aucun traceur publicitaire ou de mesure d'audience n'est
-          déposé.`}
+          (exemptés de consentement). Aucun traceur publicitaire ou de mesure d'audience n'est déposé.`}
         </p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">

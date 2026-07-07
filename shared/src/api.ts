@@ -48,6 +48,22 @@ export interface AuthResponse {
   accessToken: string
 }
 
+// ── Bêta : signalements des testeurs ─────────────────────────
+
+export type FeedbackCategory = 'BUG' | 'SUGGESTION' | 'UI' | 'PERFORMANCE' | 'OTHER'
+export type FeedbackPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+
+export interface FeedbackPayload {
+  title: string
+  description: string
+  category: FeedbackCategory
+  priority: FeedbackPriority
+  /** Route de l'app où le signalement a été fait. */
+  page?: string
+  /** Capture d'écran compressée (data-URL image), optionnelle. */
+  screenshot?: string
+}
+
 // ── Appareils connectés ──────────────────────────────────────
 
 export type SessionDevice = 'desktop' | 'mobile' | 'tablet' | 'unknown'

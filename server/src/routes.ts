@@ -3,6 +3,7 @@ import { addictionsRouter } from './modules/addictions/addictions.routes.js'
 import { authRouter } from './modules/auth/auth.routes.js'
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js'
 import { deepworkRouter } from './modules/deepwork/deepwork.routes.js'
+import { feedbackRouter } from './modules/feedback/feedback.routes.js'
 import { journalRouter } from './modules/journal/journal.routes.js'
 import { leaderboardRouter } from './modules/leaderboard/leaderboard.routes.js'
 import { mainQuestRouter } from './modules/main-quest/main-quest.routes.js'
@@ -30,6 +31,7 @@ apiRouter.use('/dashboard', dashboardRouter)
 apiRouter.use('/deepwork', deepworkRouter)
 apiRouter.use('/addictions', addictionsRouter)
 apiRouter.use('/journal', journalRouter)
+apiRouter.use('/feedback', feedbackRouter)
 apiRouter.use('/leaderboard', leaderboardRouter)
 apiRouter.use('/stats', statsRouter)
 apiRouter.use('/subscriptions', subscriptionsRouter)

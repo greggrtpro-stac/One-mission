@@ -2,6 +2,25 @@ import type { NextFunction, Request, Response } from 'express'
 import { ZodError } from 'zod'
 import { isProd } from '../config/env.js'
 
+/**
+ * Journal d'erreurs structuré (une ligne JSON par erreur) : date, utilisateur
+ * connecté le cas échéant, route touchée, statut et message. La stack trace
+ * n'est émise qu'en développement. Un collecteur (pino, Sentry…) pourra se
+ * brancher ici sans toucher au reste du code.
+ */
+function logServerError(req: Request, err: unknown, status: number) {
+  const entry = {
+    date: new Date().toISOString(),
+    status,
+    method: req.method,
+    path: req.originalUrl,
+    userId: req.userId ?? null,
+    message: err instanceof Error ? err.message : String(err),
+    ...(isProd ? {} : { stack: err instanceof Error ? err.stack : undefined }),
+  }
+  console.error('[api-error]', JSON.stringify(entry))
+}
+
 /** Erreur métier avec code HTTP, à lancer depuis les services/contrôleurs. */
 export class ApiError extends Error {
   constructor(
@@ -20,8 +39,11 @@ export function notFoundHandler(req: Request, res: Response) {
   res.status(404).json({ error: `Route introuvable : ${req.method} ${req.path}` })
 }
 
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ApiError) {
+    // Les 4xx sont des refus métier normaux (validation, droits) : pas de bruit
+    // dans le journal. Les 5xx portés par une ApiError restent journalisés.
+    if (err.status >= 500) logServerError(req, err, err.status)
     res.status(err.status).json({ error: err.message, code: err.code, details: err.details })
     return
   }
@@ -32,7 +54,12 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     })
     return
   }
-  console.error('Erreur non gérée :', err)
+  // Corps JSON malformé (body-parser) : faute du client, pas erreur serveur.
+  if (err instanceof SyntaxError && 'body' in err) {
+    res.status(400).json({ error: 'Corps de requête JSON invalide' })
+    return
+  }
+  logServerError(req, err, 500)
   res.status(500).json({
     error: isProd ? 'Erreur interne du serveur' : String(err instanceof Error ? err.message : err),
   })

@@ -9,6 +9,7 @@ import {
   Rocket,
   Settings,
   ShieldCheck,
+  Sparkles,
   Sun,
   Swords,
   Timer,
@@ -23,6 +24,7 @@ import { XpToasts } from '@/components/gamification/XpToasts'
 import { LegalFooterLinks } from '@/components/LegalFooterLinks'
 import { Avatar, Logo } from '@/components/ui'
 import { DeepWorkTicker } from '@/features/deepwork/DeepWorkTicker'
+import { BugReportButton } from '@/features/feedback/BugReportButton'
 import { cn } from '@/lib/cn'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -39,6 +41,7 @@ const NAV = [
   { to: '/app/journal', label: 'Journal', icon: BookOpenText },
   { to: '/app/leaderboard', label: 'Classement', icon: Trophy },
   { to: '/app/level-up', label: 'Level Up', icon: Rocket },
+  { to: '/app/changelog', label: 'Nouveautés', icon: Sparkles },
 ]
 
 const NAV_BOTTOM = [
@@ -165,6 +168,8 @@ export function AppShell() {
           </button>
 
           <div className="flex-1" />
+
+          <BugReportButton />
 
           <XpMeter />
 

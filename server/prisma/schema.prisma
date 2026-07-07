@@ -81,6 +81,21 @@ enum BillingCycle {
   YEARLY
 }
 
+enum FeedbackCategory {
+  BUG
+  SUGGESTION
+  UI
+  PERFORMANCE
+  OTHER
+}
+
+enum FeedbackPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 enum SubscriptionEventType {
   CREATED
   UPGRADED
@@ -140,6 +155,28 @@ model User {
   refreshTokens    RefreshToken[]
   passwordResets   PasswordResetToken[]
   subscription     Subscription?
+  feedbacks        Feedback[]
+}
+
+// ── Bêta : signalements des testeurs ─────────────────────────
+
+/// Signalement envoyé via le bouton « Signaler un bug » : consultable en base
+/// (npm run db:studio) ; le statut est un suivi manuel de l'éditeur.
+model Feedback {
+  id          String           @id @default(cuid())
+  userId      String
+  title       String
+  description String           @db.Text
+  category    FeedbackCategory @default(BUG)
+  priority    FeedbackPriority @default(MEDIUM)
+  page        String? // route de l'app où le signalement a été fait
+  screenshot  String? // capture d'écran compressée (data-URL), optionnelle
+  status      String           @default("NEW") // NEW / IN_PROGRESS / DONE
+  createdAt   DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
 }
 
 // ── Abonnements ──────────────────────────────────────────────
