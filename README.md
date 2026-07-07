@@ -48,6 +48,44 @@ Toutes documentées dans [`.env.example`](.env.example). Obligatoires : `DATABAS
 
 **Ne jamais commiter `.env`** (déjà ignoré par Git).
 
+## Mise en production (hébergement Node.js — Hostinger, VPS…)
+
+En production, **le serveur Express sert aussi le client construit** : un seul
+processus Node suffit (pas de serveur web séparé obligatoire).
+
+```bash
+# 1. Cloner + installer
+git clone https://github.com/greggrtpro-stac/One-mission.git && cd One-mission
+npm ci
+
+# 2. Créer le .env de production à la racine (jamais commité) :
+#    NODE_ENV=production
+#    PORT=…                      (port imposé par l'hébergeur)
+#    DATABASE_URL=…              (PostgreSQL externe/managé)
+#    CLIENT_URL=https://votre-domaine.fr
+#    JWT_ACCESS_SECRET / JWT_REFRESH_SECRET  (openssl rand -base64 48)
+#    SMTP_* (e-mails), ANTHROPIC_API_KEY, GOOGLE_CLIENT_ID… selon besoins
+
+# 3. Base : appliquer les migrations puis générer le client Prisma
+npm run db:deploy
+
+# 4. Construire (shared → server → client)
+npm run build
+
+# 5. Démarrer (commande de démarrage à donner à l'hébergeur)
+npm start
+```
+
+Points importants :
+
+- **Node ≥ 20.19** (champ `engines`), PostgreSQL requis (pas MySQL).
+- `NODE_ENV=production` active automatiquement : cookies `secure`,
+  `trust proxy`, service du client statique, logs propres.
+- Redémarrage après chaque déploiement : `npm ci && npm run db:deploy && npm run build`, puis relancer `npm start`.
+- HTTPS : fourni par l'hébergeur (proxy) ; le domaine doit correspondre à `CLIENT_URL`.
+- Champs à compléter avant la mise en ligne : `client/src/config/legal.ts`
+  (mentions légales), balises `og:url`/canonical et sitemap (domaine définitif).
+
 ## Notes de développement
 
 - Après une migration, si des champs Prisma sont `undefined` au runtime : `npx prisma generate` dans `server/`.

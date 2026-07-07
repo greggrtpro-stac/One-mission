@@ -4,6 +4,7 @@ import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
 import { env, isProd } from '../../config/env.js'
 import { signAccessToken } from '../../lib/jwt.js'
+import { log } from '../../lib/log.js'
 import { locationFromIp, parseUserAgent } from '../../lib/userAgent.js'
 import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
@@ -56,12 +57,23 @@ authRouter.use(
 
 authRouter.post('/register', validateBody(registerSchema), async (req: Request, res: Response) => {
   const user = await auth.register(req.body)
+  log('info', 'auth.register', { userId: user.id })
   await sendSession(req, res, user.id, user, 201)
 })
 
 authRouter.post('/login', validateBody(loginSchema), async (req: Request, res: Response) => {
-  const user = await auth.login(req.body)
-  await sendSession(req, res, user.id, user)
+  try {
+    const user = await auth.login(req.body)
+    log('info', 'auth.login', { userId: user.id })
+    await sendSession(req, res, user.id, user)
+  } catch (err) {
+    // Signal de sécurité : les échecs de connexion sont journalisés (sans
+    // l'identifiant saisi — pas de donnée personnelle dans les logs).
+    if (err instanceof ApiError && err.status === 401) {
+      log('warn', 'auth.login.failed', { ip: req.ip })
+    }
+    throw err
+  }
 })
 
 authRouter.post('/google', validateBody(googleAuthSchema), async (req: Request, res: Response) => {
@@ -127,7 +139,10 @@ authRouter.delete('/sessions/:familyId', requireAuth, async (req: Request, res: 
 
 authRouter.post('/logout', async (req: Request, res: Response) => {
   const raw = req.cookies?.[REFRESH_COOKIE] as string | undefined
-  if (raw) await auth.revokeRefreshToken(raw)
+  if (raw) {
+    await auth.revokeRefreshToken(raw)
+    log('info', 'auth.logout', {})
+  }
   res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions, maxAge: undefined }).status(204).end()
 })
 

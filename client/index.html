@@ -22,14 +22,7 @@
       content="Transforme tes objectifs en quêtes, ta discipline en XP et tes journées en progression mesurable."
     />
     <meta name="twitter:card" content="summary" />
-    <script>
-      // Applique le thème avant le premier rendu pour éviter tout flash.
-      try {
-        var s = JSON.parse(localStorage.getItem('om-theme'))
-        var t = s && s.state && s.state.theme
-        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t
-      } catch (e) {}
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

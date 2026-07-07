@@ -7,7 +7,9 @@ const app = createApp()
 // peuvent se lier au même port en silence et l'ancien vole les requêtes du
 // nouveau (symptôme : l'API sert du code périmé, le front semble cassé).
 const server = app.listen({ port: env.PORT, exclusive: true }, () => {
-  console.log(`🎯 One Mission API prête sur http://localhost:${env.PORT}`)
+  console.log(
+    `🎯 One Mission API prête sur http://localhost:${env.PORT} (${env.NODE_ENV}, node ${process.version})`,
+  )
 })
 
 server.on('error', (err: NodeJS.ErrnoException) => {
