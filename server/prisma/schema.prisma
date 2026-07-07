@@ -130,6 +130,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   quests           Quest[]
+  questCompletions QuestCompletion[]
   mainQuest        MainQuest?
   weeklyQuests     WeeklyQuest[]
   planningEvents   PlanningEvent[]
@@ -238,14 +239,39 @@ model Quest {
   progress    Int           @default(0) // 0–100
   xpAwarded   Int           @default(0) // XP réellement versée (idempotence)
   completedAt DateTime?
+  // Posé par la migration 20260706164006 (branche quêtes journalières) :
+  // nombre total de jours où la quête a été réalisée. Inutilisé par main
+  // tant que la branche n'est pas mergée.
+  totalCompletions Int @default(0)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   planningEvent PlanningEvent?
+  completions   QuestCompletion[]
 
   @@index([userId, dueDate])
   @@index([userId, status])
+}
+
+/// Historique des accomplissements journaliers : une ligne par quête et par
+/// jour réalisé. Survit au reset quotidien (et à la suppression de la quête)
+/// pour alimenter les statistiques : complétions, XP, séries, taux de réussite.
+/// Table posée par la branche quêtes journalières (migration 20260706164006) ;
+/// le code de main ne l'exploite pas encore.
+model QuestCompletion {
+  id          String        @id @default(cuid())
+  userId      String
+  questId     String? // null si la quête a été supprimée depuis
+  category    QuestCategory
+  xpAwarded   Int
+  completedAt DateTime
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+
+  @@index([userId, completedAt])
+  @@index([questId])
 }
 
 // ── Planning ─────────────────────────────────────────────────
