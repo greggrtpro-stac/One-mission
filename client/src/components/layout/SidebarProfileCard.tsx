@@ -3,8 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronsUpDown, LogOut, Settings, Star, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { logout } from '@/api/auth'
 import { Avatar, ProgressBar } from '@/components/ui'
+import { useLogout } from '@/features/auth/useLogout'
 import { PlanBadge } from '@/features/subscription/PlanBadge'
 import { usePlan } from '@/features/subscription/useSubscription'
 import { cn } from '@/lib/cn'
@@ -23,6 +23,7 @@ interface SidebarProfileCardProps {
 export function SidebarProfileCard({ user, onNavigate }: SidebarProfileCardProps) {
   const { plan } = usePlan()
   const navigate = useNavigate()
+  const logout = useLogout()
   const [menuOpen, setMenuOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -56,7 +57,6 @@ export function SidebarProfileCard({ user, onNavigate }: SidebarProfileCardProps
     setMenuOpen(false)
     onNavigate?.()
     await logout()
-    navigate('/login')
   }
 
   return (

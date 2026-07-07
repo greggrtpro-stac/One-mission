@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '@/api/http'
+import { LegalFooterLinks } from '@/components/LegalFooterLinks'
 import { Badge, Button, Card, Logo, LogoMark, ProgressBar } from '@/components/ui'
 import { PricingSection } from '@/features/subscription/PricingSection'
 
@@ -199,6 +200,7 @@ export function LandingPage() {
       <footer className="relative z-10 border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 sm:flex-row">
           <Logo size={22} />
+          <LegalFooterLinks />
           <p className="flex items-center gap-2 text-xs text-faint">
             <span
               className={

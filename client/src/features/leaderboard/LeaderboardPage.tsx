@@ -1,9 +1,11 @@
 import type { LeaderboardEntry } from '@one-mission/shared'
 import { useQuery } from '@tanstack/react-query'
-import { Crown, Flame, Trophy } from 'lucide-react'
+import { Crown, EyeOff, Flame, Trophy } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { leaderboardApi } from '@/api/stats'
 import { Avatar, Badge, Card, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
+import { useAuthStore } from '@/stores/auth'
 
 const PODIUM_STYLES = [
   'text-[#f5c542]', // or
@@ -52,6 +54,7 @@ function Row({ entry }: { entry: LeaderboardEntry }) {
 export function LeaderboardPage() {
   const query = useQuery({ queryKey: ['leaderboard'], queryFn: leaderboardApi.get })
   const data = query.data
+  const isHidden = useAuthStore((s) => s.user?.showOnLeaderboard === false)
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -64,12 +67,17 @@ export function LeaderboardPage() {
               : 'Les joueurs les plus réguliers, classés par XP totale.'}
           </p>
         </div>
-        {data && (
-          <Badge variant="accent" className="text-sm">
-            <Trophy size={13} /> Ton rang : {data.me.rank}
-            {data.me.rank === 1 ? 'ᵉʳ' : 'ᵉ'}
-          </Badge>
-        )}
+        {data &&
+          (isHidden ? (
+            <Badge variant="outline" className="text-sm">
+              <EyeOff size={13} /> Profil masqué
+            </Badge>
+          ) : (
+            <Badge variant="accent" className="text-sm">
+              <Trophy size={13} /> Ton rang : {data.me.rank}
+              {data.me.rank === 1 ? 'ᵉʳ' : 'ᵉ'}
+            </Badge>
+          ))}
       </div>
 
       {query.isLoading ? (
@@ -84,14 +92,29 @@ export function LeaderboardPage() {
             ))}
           </ul>
 
-          {/* Hors du top : rappelle la position du joueur */}
-          {!data.entries.some((e) => e.isMe) && (
-            <div className="mt-4">
-              <p className="mb-2 text-center text-xs text-faint">⋯</p>
-              <ul>
-                <Row entry={data.me} />
-              </ul>
-            </div>
+          {/* Profil masqué : le joueur n'apparaît nulle part, on lui explique pourquoi */}
+          {isHidden ? (
+            <Card className="mt-4 flex items-center gap-3 p-4 text-sm text-muted">
+              <EyeOff size={16} className="shrink-0" />
+              <p>
+                Ton profil est masqué du classement public : les autres joueurs ne te voient pas.
+                Tu continues à gagner de l'XP — réactive l'option dans les{' '}
+                <Link to="/app/settings" className="font-medium text-accent hover:underline">
+                  Paramètres
+                </Link>{' '}
+                pour réapparaître avec ton rang à jour.
+              </p>
+            </Card>
+          ) : (
+            /* Hors du top : rappelle la position du joueur */
+            !data.entries.some((e) => e.isMe) && (
+              <div className="mt-4">
+                <p className="mb-2 text-center text-xs text-faint">⋯</p>
+                <ul>
+                  <Row entry={data.me} />
+                </ul>
+              </div>
+            )
           )}
         </>
       ) : (

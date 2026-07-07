@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchGoogleClientId, loginWithGoogle } from '@/api/auth'
+import { Button, Spinner } from '@/components/ui'
 import { useThemeStore } from '@/stores/theme'
 
 declare global {
@@ -36,11 +37,21 @@ interface GoogleButtonProps {
   onError?: (message: string) => void
 }
 
-/** Bouton « Continuer avec Google » — rendu uniquement si le serveur est configuré. */
+/**
+ * Bouton « Continuer avec Google » — rendu uniquement si le serveur est configuré.
+ *
+ * Confidentialité (RGPD) : le script de Google n'est PAS chargé au chargement
+ * de la page. Il ne l'est qu'au premier clic de l'utilisateur — le service est
+ * alors expressément demandé, ce qui exempte ses traceurs de consentement
+ * préalable et évite tout appel vers Google pour les visiteurs qui ne
+ * l'utilisent pas.
+ */
 export function GoogleButton({ onError }: GoogleButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const theme = useThemeStore((s) => s.theme)
+  const [activated, setActivated] = useState(false)
+  const [loadingScript, setLoadingScript] = useState(false)
 
   const { data } = useQuery({
     queryKey: ['google-client-id'],
@@ -50,9 +61,10 @@ export function GoogleButton({ onError }: GoogleButtonProps) {
   const clientId = data?.clientId
 
   useEffect(() => {
-    if (!clientId || !containerRef.current) return
+    if (!activated || !clientId || !containerRef.current) return
     let cancelled = false
 
+    setLoadingScript(true)
     loadGsiScript()
       .then(() => {
         if (cancelled || !window.google || !containerRef.current) return
@@ -76,11 +88,14 @@ export function GoogleButton({ onError }: GoogleButtonProps) {
         })
       })
       .catch((e: Error) => onError?.(e.message))
+      .finally(() => {
+        if (!cancelled) setLoadingScript(false)
+      })
 
     return () => {
       cancelled = true
     }
-  }, [clientId, theme, navigate, onError])
+  }, [activated, clientId, theme, navigate, onError])
 
   if (!clientId) return null
 
@@ -91,7 +106,28 @@ export function GoogleButton({ onError }: GoogleButtonProps) {
         ou
         <span className="h-px flex-1 bg-line" />
       </div>
-      <div ref={containerRef} className="flex justify-center" />
+
+      {!activated ? (
+        <div className="flex flex-col items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={() => setActivated(true)}
+          >
+            Continuer avec Google
+          </Button>
+          <p className="text-center text-[11px] leading-relaxed text-faint">
+            En continuant avec Google, le service de connexion de Google sera chargé et pourra
+            déposer ses propres cookies.
+          </p>
+        </div>
+      ) : (
+        <div className="flex min-h-11 items-center justify-center">
+          {loadingScript && <Spinner className="text-accent" />}
+          <div ref={containerRef} className="flex justify-center" />
+        </div>
+      )}
     </>
   )
 }

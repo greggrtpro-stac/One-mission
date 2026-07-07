@@ -22,8 +22,18 @@ const updateProfileSchema = z.object({
     .regex(/^[+\d][\d\s().-]*$/, 'Numéro de téléphone invalide')
     .nullable()
     .optional(),
-  /** Data-URL (petite image) ou URL http(s). */
-  avatarUrl: z.string().max(300_000).nullable().optional(),
+  /**
+   * Photo de profil : uniquement une data-URL d'image encodée en base64.
+   * Affichée chez les AUTRES joueurs (classement) : accepter une URL arbitraire
+   * permettrait d'y placer un pixel de traçage externe ou un schéma dangereux.
+   * (Les avatars Google, en https, sont écrits côté serveur, pas par cette route.)
+   */
+  avatarUrl: z
+    .string()
+    .max(300_000)
+    .regex(/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/]+=*$/, "Format d'image invalide")
+    .nullable()
+    .optional(),
   theme: z.enum(['dark', 'light']).optional(),
   language: z.enum(LANGUAGES).optional(),
   notifications: z
@@ -101,6 +111,47 @@ usersRouter.patch(
     res.json({ message: 'Mot de passe mis à jour' })
   },
 )
+
+/**
+ * Export complet des données du compte (droit à la portabilité, art. 20 RGPD).
+ * JSON lisible ; exclut les secrets techniques (hash de mot de passe, secret 2FA,
+ * hash de tokens) qui ne sont pas des données personnelles restituables.
+ */
+usersRouter.get('/me/export', async (req: Request, res: Response) => {
+  const userId = getUserId(req)
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      quests: true,
+      mainQuest: true,
+      weeklyQuests: true,
+      planningEvents: true,
+      deepWorkSessions: true,
+      addictions: { include: { relapses: true, coachMessages: true } },
+      journalEntries: true,
+      subscription: { include: { events: true } },
+      refreshTokens: {
+        where: { revokedAt: null, expiresAt: { gt: new Date() } },
+        select: { userAgent: true, ip: true, connectedAt: true, lastUsedAt: true },
+      },
+    },
+  })
+  if (!user) throw new ApiError(404, 'Utilisateur introuvable')
+
+  const { passwordHash: _pw, twoFactorSecret: _tfa, googleId, refreshTokens, ...profile } = user
+
+  const exportPayload = {
+    exportedAt: new Date().toISOString(),
+    format: 'One Mission — export des données personnelles (RGPD art. 15 et 20)',
+    account: { ...profile, googleLinked: Boolean(googleId) },
+    activeSessions: refreshTokens,
+  }
+
+  res
+    .setHeader('Content-Disposition', 'attachment; filename="one-mission-mes-donnees.json"')
+    .json(exportPayload)
+})
 
 /** Révoque toutes les sessions (tous les appareils), y compris celle-ci. */
 usersRouter.post('/me/logout-all', async (req: Request, res: Response) => {

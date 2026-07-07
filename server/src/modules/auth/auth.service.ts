@@ -16,19 +16,35 @@ const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_I
 
 // ── Sessions (refresh tokens rotatifs) ───────────────────────
 
-export async function issueRefreshToken(userId: string): Promise<string> {
+export interface SessionMeta {
+  userAgent: string | null
+  ip: string | null
+}
+
+export async function issueRefreshToken(
+  userId: string,
+  meta: SessionMeta,
+  /** Rotation : conserve l'identité de session et sa date de connexion. */
+  carryOver?: { familyId: string; connectedAt: Date },
+): Promise<string> {
   const token = generateToken()
   await prisma.refreshToken.create({
     data: {
       userId,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + REFRESH_TTL_MS),
+      userAgent: meta.userAgent,
+      ip: meta.ip,
+      ...(carryOver ? { familyId: carryOver.familyId, connectedAt: carryOver.connectedAt } : {}),
     },
   })
   return token
 }
 
-export async function rotateRefreshToken(rawToken: string): Promise<{ user: User; refreshToken: string; accessToken: string }> {
+export async function rotateRefreshToken(
+  rawToken: string,
+  meta: SessionMeta,
+): Promise<{ user: User; refreshToken: string; accessToken: string }> {
   const record = await prisma.refreshToken.findUnique({
     where: { tokenHash: hashToken(rawToken) },
     include: { user: true },
@@ -38,18 +54,59 @@ export async function rotateRefreshToken(rawToken: string): Promise<{ user: User
     throw new ApiError(401, 'Session expirée, reconnecte-toi', 'INVALID_REFRESH')
   }
 
-  // Rotation : l'ancien token est révoqué, un nouveau est émis.
+  // Rotation : l'ancien token est révoqué, un nouveau est émis dans la même
+  // famille (même session « appareil », date de connexion d'origine conservée).
   await prisma.refreshToken.update({
     where: { id: record.id },
     data: { revokedAt: new Date() },
   })
-  const refreshToken = await issueRefreshToken(record.userId)
+  const refreshToken = await issueRefreshToken(record.userId, meta, {
+    familyId: record.familyId,
+    connectedAt: record.connectedAt,
+  })
 
   return {
     user: record.user,
     refreshToken,
     accessToken: signAccessToken(record.userId),
   }
+}
+
+/** Famille (session) du token porté par le cookie, si encore actif. */
+export async function findSessionFamilyByToken(rawToken: string): Promise<string | null> {
+  const record = await prisma.refreshToken.findUnique({
+    where: { tokenHash: hashToken(rawToken) },
+    select: { familyId: true, revokedAt: true, expiresAt: true },
+  })
+  if (!record || record.revokedAt || record.expiresAt < new Date()) return null
+  return record.familyId
+}
+
+/** Sessions actives (une par appareil) : tokens ni révoqués ni expirés. */
+export function listActiveSessions(userId: string) {
+  return prisma.refreshToken.findMany({
+    where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { lastUsedAt: 'desc' },
+    select: {
+      familyId: true,
+      userAgent: true,
+      ip: true,
+      connectedAt: true,
+      lastUsedAt: true,
+    },
+  })
+}
+
+/**
+ * Révoque une session (toute la famille de tokens) de l'utilisateur.
+ * Renvoie true si au moins un token actif a été révoqué.
+ */
+export async function revokeSessionFamily(userId: string, familyId: string): Promise<boolean> {
+  const { count } = await prisma.refreshToken.updateMany({
+    where: { userId, familyId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  })
+  return count > 0
 }
 
 export async function revokeRefreshToken(rawToken: string): Promise<void> {

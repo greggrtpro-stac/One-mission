@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { Spinner } from './Spinner'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-soft' | 'outline'
 type Size = 'sm' | 'md' | 'lg'
 
 export interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
@@ -19,6 +19,7 @@ const variants: Record<Variant, string> = {
   secondary: 'bg-surface-2 text-ink border border-line hover:bg-surface-3',
   ghost: 'text-muted hover:text-ink hover:bg-surface-2',
   danger: 'bg-danger text-white hover:opacity-90',
+  'danger-soft': 'bg-danger-soft text-danger hover:bg-danger hover:text-white',
   outline: 'border border-line-strong text-ink hover:border-accent hover:text-accent',
 }
 

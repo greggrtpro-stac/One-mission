@@ -9,6 +9,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { Prisma, type JournalEntry } from '../../generated/prisma/client.js'
 import { prisma } from '../../lib/prisma.js'
+import { aiRateLimit } from '../../middleware/aiRateLimit.js'
 import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
@@ -91,7 +92,7 @@ journalRouter.delete('/:date', async (req: Request, res: Response) => {
 })
 
 /** Lance l'analyse IA de l'entrée (Claude), puis la stocke sur l'entrée. Réservé aux offres Pro et Max. */
-journalRouter.post('/:date/analyze', requireFeature('journal_ai'), async (req: Request, res: Response) => {
+journalRouter.post('/:date/analyze', requireFeature('journal_ai'), aiRateLimit, async (req: Request, res: Response) => {
   const userId = getUserId(req)
   const { date, label } = parseDateParam(req.params.date)
 

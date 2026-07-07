@@ -20,6 +20,7 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay'
 import { XpToasts } from '@/components/gamification/XpToasts'
+import { LegalFooterLinks } from '@/components/LegalFooterLinks'
 import { Avatar, Logo } from '@/components/ui'
 import { DeepWorkTicker } from '@/features/deepwork/DeepWorkTicker'
 import { cn } from '@/lib/cn'
@@ -171,6 +172,7 @@ export function AppShell() {
             onClick={toggle}
             className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
             title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+            aria-label={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -185,6 +187,10 @@ export function AppShell() {
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
+
+        <footer className="border-t border-line px-4 py-4 sm:px-6 lg:px-8">
+          <LegalFooterLinks />
+        </footer>
       </div>
 
       {/* Effets de gamification globaux + timer DeepWork actif sur toutes les pages */}

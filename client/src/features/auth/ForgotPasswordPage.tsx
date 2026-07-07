@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { forgotPassword } from '@/api/auth'
 import { Button, Input } from '@/components/ui'
 import { AuthLayout } from './AuthLayout'
+import { PrivacyNotice } from './PrivacyNotice'
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -43,6 +44,8 @@ export function ForgotPasswordPage() {
           <Button type="submit" size="lg" loading={mutation.isPending} className="w-full">
             Envoyer le lien
           </Button>
+
+          <PrivacyNotice text="Ton adresse e-mail est utilisée uniquement pour t'envoyer le lien de réinitialisation." />
         </form>
       )}
 

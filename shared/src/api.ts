@@ -48,6 +48,28 @@ export interface AuthResponse {
   accessToken: string
 }
 
+// ── Appareils connectés ──────────────────────────────────────
+
+export type SessionDevice = 'desktop' | 'mobile' | 'tablet' | 'unknown'
+
+/** Session active du compte (un appareil connecté). */
+export interface SessionInfo {
+  /** Identifiant stable de la session (survit aux rotations de token). */
+  id: string
+  device: SessionDevice
+  os: string | null
+  browser: string | null
+  /** Localisation approximative — null si indisponible. */
+  location: string | null
+  connectedAt: string
+  lastActivityAt: string
+  isCurrent: boolean
+}
+
+export interface SessionsResponse {
+  sessions: SessionInfo[]
+}
+
 /** Renvoyé par toute action qui rapporte de l'XP. */
 export interface XpResult {
   xpGained: number

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { CoachMessage } from '../../generated/prisma/client.js'
 import { aiAvailable } from '../../lib/claude.js'
 import { prisma } from '../../lib/prisma.js'
+import { aiRateLimit } from '../../middleware/aiRateLimit.js'
 import { getUserId } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
@@ -52,7 +53,7 @@ coachRouter.get('/', async (req: Request, res: Response) => {
   })
 })
 
-coachRouter.post('/', validateBody(sendSchema), async (req: Request, res: Response) => {
+coachRouter.post('/', aiRateLimit, validateBody(sendSchema), async (req: Request, res: Response) => {
   const userId = getUserId(req)
   const addiction = await getOwnedAddiction(userId, req.params.id as string)
   const content = (req.body.content as string).trim()

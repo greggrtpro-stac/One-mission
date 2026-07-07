@@ -14,6 +14,12 @@ build/
 *.log
 npm-debug.log*
 
+# Caches
+*.tsbuildinfo
+.cache/
+.eslintcache
+coverage/
+
 # OS / Editor
 .DS_Store
 Thumbs.db

@@ -52,7 +52,10 @@ async function request<T>(path: string, init: RequestInit, allowRetry: boolean):
   })
 
   // Access token expiré : on tente un refresh silencieux puis on rejoue l'appel.
-  if (res.status === 401 && allowRetry && !path.startsWith('/api/auth/')) {
+  // Les routes d'auth sont exclues (boucles), sauf /sessions qui est un
+  // endpoint authentifié classique placé là pour voir le cookie refresh.
+  const canRetry = !path.startsWith('/api/auth/') || path.startsWith('/api/auth/sessions')
+  if (res.status === 401 && allowRetry && canRetry) {
     const newToken = await refreshSession()
     if (newToken) return request<T>(path, init, false)
     useAuthStore.getState().clearSession()

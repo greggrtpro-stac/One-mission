@@ -5,6 +5,7 @@ import { login } from '@/api/auth'
 import { Button, Input } from '@/components/ui'
 import { AuthLayout } from './AuthLayout'
 import { GoogleButton } from './GoogleButton'
+import { PrivacyNotice } from './PrivacyNotice'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -70,6 +71,8 @@ export function LoginPage() {
         <Button type="submit" size="lg" loading={mutation.isPending} className="w-full">
           Se connecter
         </Button>
+
+        <PrivacyNotice text="Tes identifiants servent uniquement à t'authentifier et à sécuriser ton compte." />
       </form>
 
       <GoogleButton onError={setGoogleError} />

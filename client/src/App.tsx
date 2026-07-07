@@ -1,41 +1,72 @@
 import { useEffect } from 'react'
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom'
 import { bootstrapSession } from '@/api/auth'
+import { CookieBanner } from '@/components/CookieBanner'
 import { AppShell } from '@/components/layout/AppShell'
 import { GuestOnly, RequireAuth } from '@/components/layout/guards'
 import { RouteErrorPage } from '@/components/layout/RouteErrorPage'
-import { AddictionsPage } from '@/features/addictions/AddictionsPage'
-import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
-import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
-import { DashboardPage } from '@/features/dashboard/DashboardPage'
-import { DeepWorkPage } from '@/features/deepwork/DeepWorkPage'
-import { JournalPage } from '@/features/journal/JournalPage'
 import { LandingPage } from '@/features/landing/LandingPage'
-import { LeaderboardPage } from '@/features/leaderboard/LeaderboardPage'
-import { PlanningPage } from '@/features/planning/PlanningPage'
-import { ProfilePage } from '@/features/profile/ProfilePage'
-import { QuestsPage } from '@/features/quests/QuestsPage'
-import { SettingsPage } from '@/features/settings/SettingsPage'
-import { LevelUpPage } from '@/features/subscription/LevelUpPage'
-import { WeeklyPage } from '@/features/weekly/WeeklyPage'
 
+/** Racine : les routes + la bannière cookies, présente sur tout le site. */
+function Root() {
+  return (
+    <>
+      <Outlet />
+      <CookieBanner />
+    </>
+  )
+}
+
+// Découpage du bundle : la landing et le tunnel de connexion restent dans le
+// chunk initial (premier rendu instantané) ; chaque autre page est chargée à
+// la demande via route.lazy — recharts (Profil), le planning, etc. ne pèsent
+// plus sur la première visite.
 const router = createBrowserRouter([
   {
-    element: <Outlet />,
+    element: <Root />,
     // Filet de sécurité : une erreur de rendu sur n'importe quelle route
     // affiche cette page au lieu de l'écran gris par défaut de React Router.
     errorElement: <RouteErrorPage />,
     children: [
       { path: '/', element: <LandingPage /> },
+      // Pages juridiques — publiques, accessibles connecté ou non.
+      {
+        path: '/mentions-legales',
+        lazy: async () => ({
+          Component: (await import('@/features/legal/MentionsLegalesPage')).MentionsLegalesPage,
+        }),
+      },
+      {
+        path: '/confidentialite',
+        lazy: async () => ({
+          Component: (await import('@/features/legal/ConfidentialitePage')).ConfidentialitePage,
+        }),
+      },
+      {
+        path: '/cookies',
+        lazy: async () => ({
+          Component: (await import('@/features/legal/CookiesPage')).CookiesPage,
+        }),
+      },
       {
         element: <GuestOnly />,
         children: [
           { path: '/login', element: <LoginPage /> },
           { path: '/register', element: <RegisterPage /> },
-          { path: '/forgot-password', element: <ForgotPasswordPage /> },
-          { path: '/reset-password', element: <ResetPasswordPage /> },
+          {
+            path: '/forgot-password',
+            lazy: async () => ({
+              Component: (await import('@/features/auth/ForgotPasswordPage')).ForgotPasswordPage,
+            }),
+          },
+          {
+            path: '/reset-password',
+            lazy: async () => ({
+              Component: (await import('@/features/auth/ResetPasswordPage')).ResetPasswordPage,
+            }),
+          },
         ],
       },
       {
@@ -45,19 +76,75 @@ const router = createBrowserRouter([
             path: '/app',
             element: <AppShell />,
             children: [
-              { index: true, element: <DashboardPage /> },
-              { path: 'quests', element: <QuestsPage /> },
-              { path: 'weekly', element: <WeeklyPage /> },
-              { path: 'planning', element: <PlanningPage /> },
-              { path: 'deepwork', element: <DeepWorkPage /> },
-              { path: 'addictions', element: <AddictionsPage /> },
-              { path: 'journal', element: <JournalPage /> },
-              { path: 'leaderboard', element: <LeaderboardPage /> },
+              {
+                index: true,
+                lazy: async () => ({
+                  Component: (await import('@/features/dashboard/DashboardPage')).DashboardPage,
+                }),
+              },
+              {
+                path: 'quests',
+                lazy: async () => ({
+                  Component: (await import('@/features/quests/QuestsPage')).QuestsPage,
+                }),
+              },
+              {
+                path: 'weekly',
+                lazy: async () => ({
+                  Component: (await import('@/features/weekly/WeeklyPage')).WeeklyPage,
+                }),
+              },
+              {
+                path: 'planning',
+                lazy: async () => ({
+                  Component: (await import('@/features/planning/PlanningPage')).PlanningPage,
+                }),
+              },
+              {
+                path: 'deepwork',
+                lazy: async () => ({
+                  Component: (await import('@/features/deepwork/DeepWorkPage')).DeepWorkPage,
+                }),
+              },
+              {
+                path: 'addictions',
+                lazy: async () => ({
+                  Component: (await import('@/features/addictions/AddictionsPage')).AddictionsPage,
+                }),
+              },
+              {
+                path: 'journal',
+                lazy: async () => ({
+                  Component: (await import('@/features/journal/JournalPage')).JournalPage,
+                }),
+              },
+              {
+                path: 'leaderboard',
+                lazy: async () => ({
+                  Component: (await import('@/features/leaderboard/LeaderboardPage'))
+                    .LeaderboardPage,
+                }),
+              },
               // Les statistiques vivent désormais sur le Profil.
               { path: 'stats', element: <Navigate to="/app/profile" replace /> },
-              { path: 'level-up', element: <LevelUpPage /> },
-              { path: 'profile', element: <ProfilePage /> },
-              { path: 'settings', element: <SettingsPage /> },
+              {
+                path: 'level-up',
+                lazy: async () => ({
+                  Component: (await import('@/features/subscription/LevelUpPage')).LevelUpPage,
+                }),
+              },
+              {
+                path: 'profile',
+                lazy: async () => ({
+                  Component: (await import('@/features/profile/ProfilePage')).ProfilePage,
+                }),
+              },
+              {
+                path: 'settings',
+                lazy: async () => ({
+                  Component: (await import('@/features/settings/SettingsPage')).SettingsPage,
+                }),
+              },
             ],
           },
         ],

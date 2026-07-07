@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { LegalFooterLinks } from '@/components/LegalFooterLinks'
 import { Logo, LogoMark } from '@/components/ui'
+import { usePageTitle } from '@/lib/usePageTitle'
 
 interface AuthLayoutProps {
   title: string
@@ -11,6 +13,7 @@ interface AuthLayoutProps {
 
 /** Écran d'authentification : formulaire à gauche, panneau de marque à droite. */
 export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
+  usePageTitle(title)
   return (
     <div className="flex min-h-screen bg-bg text-ink">
       {/* ── Formulaire ── */}
@@ -29,6 +32,8 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
           {subtitle && <p className="mt-2 text-sm text-muted">{subtitle}</p>}
           <div className="mt-8">{children}</div>
         </motion.div>
+
+        <LegalFooterLinks className="justify-center" />
       </div>
 
       {/* ── Panneau de marque ── */}

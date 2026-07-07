@@ -1,28 +1,42 @@
-import { DEFAULT_NOTIFICATIONS, type Language, type NotificationPrefs } from '@one-mission/shared'
-import { useMutation } from '@tanstack/react-query'
+import {
+  DEFAULT_NOTIFICATIONS,
+  type Language,
+  type NotificationPrefs,
+  type SessionDevice,
+  type SessionInfo,
+} from '@one-mission/shared'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   Bell,
   Camera,
+  Download,
   Eye,
   Globe,
   KeyRound,
-  Moon,
+  LogOut,
+  Monitor,
   MonitorSmartphone,
+  Moon,
   ShieldCheck,
+  Smartphone,
   Sun,
+  Tablet,
   UserRound,
 } from 'lucide-react'
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import {
   changePassword,
   deleteAccount,
+  downloadMyData,
+  fetchSessions,
   logoutAllDevices,
+  revokeSession,
   updateProfile,
   type ProfilePayload,
 } from '@/api/users'
-import { Avatar, Badge, Button, Card, Input, Modal, Select, Toggle } from '@/components/ui'
+import { Avatar, Badge, Button, Card, Input, Modal, Select, Spinner, Toggle } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { LANGUAGE_OPTIONS, useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -236,9 +250,11 @@ function AccountCard() {
 function PreferencesCards() {
   const user = useAuthStore((s) => s.user)!
   const { theme, setTheme } = useThemeStore()
+  const queryClient = useQueryClient()
 
   // Thème, langue et interrupteurs s'appliquent immédiatement et suivent le compte.
   const save = useMutation({ mutationFn: (payload: ProfilePayload) => updateProfile(payload) })
+  const exportData = useMutation({ mutationFn: downloadMyData })
 
   function handleTheme(t: ThemeName) {
     setTheme(t)
@@ -331,15 +347,206 @@ function PreferencesCards() {
         </h3>
         <div className="mt-4">
           <Toggle
-            label="Apparaître dans le classement"
-            description="Si désactivé, ton pseudo et ton niveau ne sont plus visibles des autres joueurs."
+            label="Afficher mon profil dans le classement public"
+            description="Autoriser les autres joueurs à voir votre profil dans le classement public."
             checked={user.showOnLeaderboard}
-            onChange={(v) => save.mutate({ showOnLeaderboard: v })}
+            onChange={(v) =>
+              save.mutate(
+                { showOnLeaderboard: v },
+                // Le classement doit refléter le changement immédiatement, sans attendre le staleTime.
+                { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leaderboard'] }) },
+              )
+            }
           />
+        </div>
+
+        <div className="mt-5 border-t border-line pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">Tes données personnelles</p>
+              <p className="mt-0.5 text-sm text-muted">
+                Télécharge une copie complète de tes données (RGPD). La suppression du compte se
+                fait dans la Zone de danger, plus bas.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={exportData.isPending}
+              onClick={() => exportData.mutate()}
+            >
+              <Download size={14} /> Télécharger mes données
+            </Button>
+          </div>
+          <ErrorNote error={exportData.error} fallback="Export impossible pour le moment" />
+          <p className="mt-3 text-xs text-faint">
+            Détails du traitement dans la{' '}
+            <RouterLink to="/confidentialite" className="text-muted underline hover:text-accent">
+              politique de confidentialité
+            </RouterLink>
+            .
+          </p>
         </div>
       </Card>
 
       <ErrorNote error={save.error} fallback="Impossible d'enregistrer la préférence" />
+    </div>
+  )
+}
+
+// ── Appareils connectés ──────────────────────────────────────
+
+const DEVICE_META: Record<SessionDevice, { label: string; icon: typeof Monitor }> = {
+  desktop: { label: 'PC', icon: Monitor },
+  mobile: { label: 'Téléphone', icon: Smartphone },
+  tablet: { label: 'Tablette', icon: Tablet },
+  unknown: { label: 'Appareil', icon: MonitorSmartphone },
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function DeviceCard({ session, onRevoke }: { session: SessionInfo; onRevoke: () => void }) {
+  const meta = DEVICE_META[session.device]
+  const Icon = meta.icon
+
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center gap-4">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+          <Icon size={20} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold">
+              {meta.label} — {session.os ?? 'Système inconnu'}
+            </p>
+            {session.isCurrent && <Badge variant="accent">Appareil actuel</Badge>}
+          </div>
+          <p className="mt-0.5 text-sm text-muted">
+            {session.browser ?? 'Navigateur inconnu'} · {session.location ?? 'Localisation inconnue'}
+          </p>
+          <p className="mt-1 text-xs text-faint">
+            Connecté le {formatDateTime(session.connectedAt)} · Dernière activité le{' '}
+            {formatDateTime(session.lastActivityAt)}
+          </p>
+        </div>
+        <Button variant="danger-soft" size="sm" onClick={onRevoke}>
+          <LogOut size={14} /> Se déconnecter
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+function DevicesCards() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [toRevoke, setToRevoke] = useState<SessionInfo | null>(null)
+  const [confirmLogoutAll, setConfirmLogoutAll] = useState(false)
+
+  const sessions = useQuery({ queryKey: ['sessions'], queryFn: fetchSessions })
+
+  const revoke = useMutation({
+    mutationFn: (session: SessionInfo) => revokeSession(session.id),
+    onSuccess: (_data, session) => {
+      setToRevoke(null)
+      if (session.isCurrent) {
+        // Le serveur a effacé le cookie de ce navigateur : on ferme aussi côté client.
+        useAuthStore.getState().clearSession()
+        navigate('/login')
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    },
+  })
+
+  const logoutAll = useMutation({
+    mutationFn: logoutAllDevices,
+    onSuccess: () => navigate('/login'),
+  })
+
+  return (
+    <div className="flex flex-col gap-4">
+      {sessions.isLoading ? (
+        <Card className="flex justify-center p-8">
+          <Spinner className="text-accent" />
+        </Card>
+      ) : sessions.data ? (
+        sessions.data.map((s) => (
+          <DeviceCard key={s.id} session={s} onRevoke={() => setToRevoke(s)} />
+        ))
+      ) : (
+        <Card className="p-6 text-sm text-muted">
+          Impossible de charger les appareils connectés.
+        </Card>
+      )}
+      <ErrorNote error={revoke.error} fallback="Impossible de fermer cette session" />
+
+      <Card className="p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 font-semibold">
+              <LogOut size={16} className="text-danger" /> Se déconnecter de tous les appareils
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              Ferme toutes les sessions actives, y compris celle-ci. Tu devras te reconnecter
+              partout.
+            </p>
+          </div>
+          <Button variant="danger-soft" onClick={() => setConfirmLogoutAll(true)}>
+            Tout déconnecter
+          </Button>
+        </div>
+        <ErrorNote error={logoutAll.error} fallback="Impossible de déconnecter les appareils" />
+      </Card>
+
+      {/* Confirmation — un seul appareil */}
+      <Modal open={toRevoke !== null} onClose={() => setToRevoke(null)} title="Se déconnecter ?">
+        <p className="text-sm text-muted">
+          {toRevoke?.isCurrent
+            ? "C'est l'appareil que tu utilises en ce moment : tu seras redirigé vers la page de connexion."
+            : 'La session de cet appareil sera fermée. Les autres appareils restent connectés.'}
+        </p>
+        <div className="mt-5 flex justify-end gap-3">
+          <Button variant="secondary" onClick={() => setToRevoke(null)}>
+            Annuler
+          </Button>
+          <Button
+            variant="danger"
+            loading={revoke.isPending}
+            onClick={() => toRevoke && revoke.mutate(toRevoke)}
+          >
+            Se déconnecter
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Confirmation — tous les appareils */}
+      <Modal
+        open={confirmLogoutAll}
+        onClose={() => setConfirmLogoutAll(false)}
+        title="Déconnecter tous les appareils ?"
+      >
+        <p className="text-sm text-muted">
+          Toutes tes sessions seront fermées immédiatement, y compris celle-ci.
+        </p>
+        <div className="mt-5 flex justify-end gap-3">
+          <Button variant="secondary" onClick={() => setConfirmLogoutAll(false)}>
+            Annuler
+          </Button>
+          <Button loading={logoutAll.isPending} onClick={() => logoutAll.mutate()}>
+            Tout déconnecter
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }
@@ -441,14 +648,8 @@ function PasswordCard() {
 function SecurityCards() {
   const user = useAuthStore((s) => s.user)!
   const navigate = useNavigate()
-  const [confirmLogoutAll, setConfirmLogoutAll] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deletePwd, setDeletePwd] = useState('')
-
-  const logoutAll = useMutation({
-    mutationFn: logoutAllDevices,
-    onSuccess: () => navigate('/login'),
-  })
 
   const remove = useMutation({
     mutationFn: () => deleteAccount(user.hasPassword ? deletePwd : undefined),
@@ -482,23 +683,6 @@ function SecurityCards() {
         </div>
       </Card>
 
-      <Card className="p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="flex items-center gap-2 font-semibold">
-              <MonitorSmartphone size={16} className="text-accent" /> Appareils connectés
-            </h3>
-            <p className="mt-1 text-sm text-muted">
-              Ferme toutes les sessions ouvertes, y compris celle-ci. Tu devras te reconnecter.
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => setConfirmLogoutAll(true)}>
-            Tout déconnecter
-          </Button>
-        </div>
-        <ErrorNote error={logoutAll.error} fallback="Impossible de déconnecter les appareils" />
-      </Card>
-
       <Card className="border-danger/40 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -514,24 +698,6 @@ function SecurityCards() {
           </Button>
         </div>
       </Card>
-
-      <Modal
-        open={confirmLogoutAll}
-        onClose={() => setConfirmLogoutAll(false)}
-        title="Déconnecter tous les appareils ?"
-      >
-        <p className="text-sm text-muted">
-          Toutes tes sessions seront fermées immédiatement, y compris celle-ci.
-        </p>
-        <div className="mt-5 flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => setConfirmLogoutAll(false)}>
-            Annuler
-          </Button>
-          <Button loading={logoutAll.isPending} onClick={() => logoutAll.mutate()}>
-            Tout déconnecter
-          </Button>
-        </div>
-      </Modal>
 
       <Modal
         open={confirmDelete}
@@ -594,6 +760,11 @@ export function SettingsPage() {
       <SectionTitle icon={Sun}>{t('settings.preferences')}</SectionTitle>
       <div className="mt-3">
         <PreferencesCards />
+      </div>
+
+      <SectionTitle icon={MonitorSmartphone}>Appareils connectés</SectionTitle>
+      <div className="mt-3">
+        <DevicesCards />
       </div>
 
       <SectionTitle icon={ShieldCheck}>{t('settings.security')}</SectionTitle>

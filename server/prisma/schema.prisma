@@ -195,9 +195,18 @@ model RefreshToken {
   revokedAt DateTime?
   createdAt DateTime  @default(now())
 
+  // Session d'appareil : les tokens sont rotatifs, familyId reste stable à
+  // travers les rotations et identifie la session dans « Appareils connectés ».
+  familyId    String   @default(cuid())
+  userAgent   String?
+  ip          String?
+  connectedAt DateTime @default(now()) // première connexion de l'appareil
+  lastUsedAt  DateTime @default(now()) // dernière rotation (activité)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([familyId])
 }
 
 model PasswordResetToken {
