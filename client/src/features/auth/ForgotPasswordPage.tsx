@@ -5,14 +5,24 @@ import { forgotPassword } from '@/api/auth'
 import { Button, Input } from '@/components/ui'
 import { AuthLayout } from './AuthLayout'
 import { PrivacyNotice } from './PrivacyNotice'
+import { TurnstileWidget } from './TurnstileWidget'
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
 
-  const mutation = useMutation({ mutationFn: () => forgotPassword(email) })
+  const mutation = useMutation({
+    mutationFn: () => forgotPassword(email, turnstileToken ?? ''),
+  })
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    setLocalError(null)
+    if (turnstileToken === null) {
+      setLocalError('Vérification anti-robot en cours, réessaie dans un instant.')
+      return
+    }
     mutation.mutate()
   }
 
@@ -36,12 +46,19 @@ export function ForgotPasswordPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="toi@exemple.fr"
           />
-          {mutation.error && (
+          <TurnstileWidget onVerify={setTurnstileToken} />
+          {(localError || mutation.error) && (
             <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
-              {mutation.error instanceof Error ? mutation.error.message : 'Erreur'}
+              {localError ?? (mutation.error instanceof Error ? mutation.error.message : 'Erreur')}
             </p>
           )}
-          <Button type="submit" size="lg" loading={mutation.isPending} className="w-full">
+          <Button
+            type="submit"
+            size="lg"
+            loading={mutation.isPending}
+            disabled={turnstileToken === null}
+            className="w-full"
+          >
             Envoyer le lien
           </Button>
 

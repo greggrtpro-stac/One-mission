@@ -1,5 +1,7 @@
 export * from './api.js'
 export * from './gamification.js'
+export * from './password.js'
 export * from './planning.js'
 export * from './quests.js'
+export * from './routines.js'
 export * from './subscriptions.js'

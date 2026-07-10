@@ -8,7 +8,7 @@ import { motion, Reorder, useDragControls } from 'framer-motion'
 import { CalendarCheck, Check, GripVertical, Pencil, Plus, RotateCcw, Trash2, Zap } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { weeklyApi } from '@/api/weekly'
-import { Badge, Button, Card, ProgressBar, Spinner } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, ProgressBar, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { applyXpResult } from '@/stores/xpFx'
 import { WeeklyFormModal } from './WeeklyFormModal'
@@ -123,24 +123,27 @@ export function WeeklyPage() {
     },
   })
 
+  const [toDelete, setToDelete] = useState<WeeklyQuestDto | null>(null)
+  const [confirmResetWeek, setConfirmResetWeek] = useState(false)
+
   const remove = useMutation({
     mutationFn: (q: WeeklyQuestDto) => weeklyApi.remove(q.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['weekly-quests'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['weekly-quests'] })
+      setToDelete(null)
+    },
   })
 
   const resetWeek = useMutation({
     mutationFn: () => weeklyApi.reset(),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['weekly-quests'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['weekly-quests'] })
+      setConfirmResetWeek(false)
+    },
   })
 
   function handleResetWeek() {
-    if (
-      window.confirm(
-        'Démarrer une nouvelle semaine ? Toutes les quêtes seront décochées (les quêtes complétées sont ajoutées à l’historique).',
-      )
-    ) {
-      resetWeek.mutate()
-    }
+    setConfirmResetWeek(true)
   }
 
   function handleReorder(next: WeeklyQuestDto[]) {
@@ -154,9 +157,7 @@ export function WeeklyPage() {
   }
 
   function handleDelete(q: WeeklyQuestDto) {
-    if (window.confirm(`Supprimer « ${q.title} » ? Son historique (×${q.totalCompletions}) sera perdu.`)) {
-      remove.mutate(q)
-    }
+    setToDelete(q)
   }
 
   const doneCount = items.filter((q) => q.completedAt).length
@@ -254,6 +255,40 @@ export function WeeklyPage() {
       )}
 
       <WeeklyFormModal open={formOpen} onClose={() => setFormOpen(false)} weeklyQuest={editing} />
+
+      <ConfirmDialog
+        open={toDelete !== null}
+        onClose={() => setToDelete(null)}
+        onConfirm={() => toDelete && remove.mutate(toDelete)}
+        icon={Trash2}
+        tone="danger"
+        title={`Supprimer « ${toDelete?.title ?? ''} » ?`}
+        description={
+          <>
+            <p>Son historique (×{toDelete?.totalCompletions ?? 0}) sera perdu.</p>
+            <p>Cette opération est irréversible.</p>
+          </>
+        }
+        confirmLabel="Supprimer"
+        loading={remove.isPending}
+      />
+
+      <ConfirmDialog
+        open={confirmResetWeek}
+        onClose={() => setConfirmResetWeek(false)}
+        onConfirm={() => resetWeek.mutate()}
+        icon={RotateCcw}
+        tone="warning"
+        title="Démarrer une nouvelle semaine ?"
+        description={
+          <>
+            <p>Toutes les quêtes seront décochées.</p>
+            <p>Les quêtes complétées sont ajoutées à l'historique.</p>
+          </>
+        }
+        confirmLabel="Nouvelle semaine"
+        loading={resetWeek.isPending}
+      />
     </div>
   )
 }

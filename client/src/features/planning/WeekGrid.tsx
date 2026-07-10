@@ -396,8 +396,8 @@ function EventChip({ segment, hourHeight, dragging, onPointerDown, onToggleDone 
         height,
         left: `calc(${col * width}% + 2px)`,
         width: `calc(${width}% - 4px)`,
-        borderLeftColor: event.color,
-        background: `color-mix(in srgb, ${event.color} 16%, transparent)`,
+        borderLeftColor: event.category.color,
+        background: `color-mix(in srgb, ${event.category.color} 16%, transparent)`,
       }}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => onPointerDown(e, 'move')}
@@ -410,6 +410,7 @@ function EventChip({ segment, hourHeight, dragging, onPointerDown, onToggleDone 
           )}
         >
           {event.questId && <Swords size={10} className="mr-1 inline-block align-[-1px]" />}
+          <span className="mr-1">{event.category.icon}</span>
           {event.title}
         </p>
         {!cancelled && (
@@ -426,7 +427,11 @@ function EventChip({ segment, hourHeight, dragging, onPointerDown, onToggleDone 
                 ? 'text-white'
                 : 'border-line-strong text-transparent opacity-0 group-hover:opacity-100 hover:text-muted',
             )}
-            style={done ? { background: event.color, borderColor: event.color } : undefined}
+            style={
+              done
+                ? { background: event.category.color, borderColor: event.category.color }
+                : undefined
+            }
           >
             <Check size={10} strokeWidth={3} />
           </button>
@@ -441,7 +446,7 @@ function EventChip({ segment, hourHeight, dragging, onPointerDown, onToggleDone 
       {/* Poignée de redimensionnement (durée) */}
       <div
         className="absolute inset-x-1 bottom-0 h-1.5 cursor-ns-resize rounded-full opacity-0 transition-opacity group-hover:opacity-60"
-        style={{ background: event.color }}
+        style={{ background: event.category.color }}
         onPointerDown={(e) => onPointerDown(e, 'resize')}
       />
     </div>

@@ -1,4 +1,5 @@
 import type {
+  PlanningCategoryDto,
   PlanningEventActionResult,
   PlanningEventDto,
   PlanningStats,
@@ -9,8 +10,7 @@ export interface PlanningEventPayload {
   title: string
   description?: string | null
   notes?: string | null
-  color: string
-  category: string
+  categoryId: string
   priority: string
   /** ISO datetime. */
   startAt: string
@@ -43,4 +43,25 @@ export const planningApi = {
     id: string,
     payload: { difficulty: string; dueDate: string; dueTime?: string | null },
   ) => http.post<{ event: PlanningEventDto }>(`/api/planning/${id}/convert-to-quest`, payload),
+}
+
+export interface PlanningCategoryPayload {
+  name: string
+  color?: string
+  icon?: string | null
+}
+
+export type PlanningCategoryDelete =
+  | { strategy: 'reassign'; targetCategoryId: string }
+  | { strategy: 'deleteEvents' }
+
+export const planningCategoriesApi = {
+  list: () => http.get<{ categories: PlanningCategoryDto[] }>('/api/planning/categories'),
+  create: (payload: PlanningCategoryPayload) =>
+    http.post<{ category: PlanningCategoryDto }>('/api/planning/categories', payload),
+  update: (id: string, payload: Partial<PlanningCategoryPayload>) =>
+    http.patch<{ category: PlanningCategoryDto }>(`/api/planning/categories/${id}`, payload),
+  reorder: (ids: string[]) => http.put<null>('/api/planning/categories/reorder', { ids }),
+  remove: (id: string, payload: PlanningCategoryDelete) =>
+    http.delete<null>(`/api/planning/categories/${id}`, payload),
 }

@@ -1,7 +1,8 @@
 import { featuresOf, lockedFeaturesOf, PLAN_LIST, PLANS, type BillingCycle } from '@one-mission/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Lock, Rocket } from 'lucide-react'
+import { Check, Lock, Rocket, Settings2 } from 'lucide-react'
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { subscriptionApi } from '@/api/subscription'
 import { Badge, Card, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -34,13 +35,20 @@ const EVENT_LABELS: Record<string, string> = {
 export function LevelUpPage() {
   const { data: sub, isLoading } = useSubscription()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [cycle, setCycle] = useState<BillingCycle>('MONTHLY')
 
-  const changePlan = useMutation({
-    mutationFn: (plan: (typeof PLAN_LIST)[number]['tier']) =>
-      subscriptionApi.changePlan(plan, cycle),
+  // Seul le retour à Starter est direct ; les offres payantes passent par la
+  // page de paiement (l'activation attend la confirmation Stripe).
+  const downgrade = useMutation({
+    mutationFn: () => subscriptionApi.downgradeToStarter(cycle),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['subscription'] }),
   })
+
+  function selectPlan(tier: (typeof PLAN_LIST)[number]['tier']) {
+    if (tier === 'STARTER') downgrade.mutate()
+    else navigate(`/app/checkout?plan=${tier}&cycle=${cycle}`)
+  }
 
   if (isLoading || !sub) {
     return (
@@ -63,6 +71,12 @@ export function LevelUpPage() {
             Ton abonnement, tes avantages, et ce qu'il te reste à débloquer.
           </p>
         </div>
+        <Link
+          to="/app/subscription"
+          className="flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+        >
+          <Settings2 size={15} /> Gérer mon abonnement
+        </Link>
       </div>
 
       {/* Offre actuelle */}
@@ -140,9 +154,9 @@ export function LevelUpPage() {
         <div className="mb-6 flex flex-col items-center gap-4 text-center">
           <h2 className="text-xl font-bold tracking-tight">Changer d'offre</h2>
           <BillingCycleToggle value={cycle} onChange={setCycle} />
-          {changePlan.error && (
+          {downgrade.error && (
             <p className="rounded-xl bg-danger-soft px-3.5 py-2 text-sm text-danger">
-              {changePlan.error instanceof Error ? changePlan.error.message : 'Erreur'}
+              {downgrade.error instanceof Error ? downgrade.error.message : 'Erreur'}
             </p>
           )}
         </div>
@@ -154,8 +168,8 @@ export function LevelUpPage() {
               billingCycle={cycle}
               currentPlan={sub.plan}
               index={i}
-              loading={changePlan.isPending}
-              onSelect={(tier) => changePlan.mutate(tier)}
+              loading={downgrade.isPending}
+              onSelect={selectPlan}
             />
           ))}
         </div>

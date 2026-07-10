@@ -1,8 +1,11 @@
-import type { LeaderboardResponse, ProfileStats } from '@one-mission/shared'
+import type { LeaderboardResponse, ProfileStats, PublicProfileResponse } from '@one-mission/shared'
 import { http } from './http'
 
 export const leaderboardApi = {
   get: () => http.get<LeaderboardResponse>('/api/leaderboard'),
+  /** Profil public d'un joueur — 404 si inexistant ou masqué du classement. */
+  profile: (userId: string) =>
+    http.get<PublicProfileResponse>(`/api/leaderboard/${encodeURIComponent(userId)}`),
 }
 
 export const statsApi = {

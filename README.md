@@ -48,6 +48,38 @@ Toutes documentées dans [`.env.example`](.env.example). Obligatoires : `DATABAS
 
 **Ne jamais commiter `.env`** (déjà ignoré par Git).
 
+## Paiements Stripe (abonnements Pro / Max)
+
+Les offres payantes utilisent **Stripe Checkout** (prélèvement automatique
+mensuel ou annuel). Sans clés Stripe dans le `.env`, le paiement est
+désactivé proprement : personne ne peut activer une offre payante.
+**L'activation n'est jamais décidée par le navigateur** : seul le webhook
+signé par Stripe active/renouvelle/résilie un abonnement en base.
+
+Mise en place (mode test d'abord) :
+
+1. Créer un compte sur dashboard.stripe.com, rester en **mode Test**.
+2. Créer un produit « One Mission Pro » avec deux tarifs récurrents
+   (4,99 €/mois et 49,90 €/an) et « One Mission Max » (9,99 €/mois,
+   99,90 €/an). Copier les 4 identifiants `price_…` dans le `.env`
+   (`STRIPE_PRICE_*`).
+3. Copier la clé secrète de test (`sk_test_…`) dans `STRIPE_SECRET_KEY`.
+4. Webhook — en local : `stripe listen --forward-to localhost:4000/api/subscriptions/webhook`
+   (CLI Stripe) et copier le `whsec_…` affiché dans `STRIPE_WEBHOOK_SECRET`.
+   En production : Développeurs → Webhooks → ajouter l'endpoint
+   `https://votre-domaine.fr/api/subscriptions/webhook` avec les événements
+   `customer.subscription.*`, `invoice.payment_failed`,
+   `checkout.session.completed`, puis copier son secret.
+5. Tester avec la carte `4242 4242 4242 4242` (succès) et
+   `4000 0000 0000 0002` (refusée) — date future et CVC quelconques.
+6. Passage en production : remplacer par les clés live (`sk_live_…`),
+   recréer les tarifs en mode live et l'endpoint webhook sur le domaine.
+
+Résiliation : bouton « Résilier mon abonnement » sur `/app/subscription` —
+l'abonnement Stripe passe en `cancel_at_period_end`, les avantages restent
+acquis jusqu'à la fin de la période payée, puis le compte revient sur Starter
+automatiquement (webhook `customer.subscription.deleted`).
+
 ## Mise en production (hébergement Node.js — Hostinger, VPS…)
 
 En production, **le serveur Express sert aussi le client construit** : un seul

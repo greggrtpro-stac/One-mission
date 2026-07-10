@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Flame, MessageCircleHeart, Pencil, Plus, ShieldCheck, Trash2, Trophy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { addictionsApi } from '@/api/deepwork'
-import { Badge, Button, Card, Spinner } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, Spinner } from '@/components/ui'
 import { FeatureGate } from '@/features/subscription/FeatureGate'
 import { applyXpResult } from '@/stores/xpFx'
 import { AddictionFormModal } from './AddictionFormModal'
@@ -120,15 +120,17 @@ export function AddictionsPage() {
     if (milestoneXp) applyXpResult(milestoneXp)
   }, [milestoneXp])
 
+  const [toDelete, setToDelete] = useState<AddictionDto | null>(null)
   const remove = useMutation({
     mutationFn: (a: AddictionDto) => addictionsApi.remove(a.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['addictions'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['addictions'] })
+      setToDelete(null)
+    },
   })
 
   function handleDelete(a: AddictionDto) {
-    if (window.confirm(`Supprimer « ${a.name} » ? Tout son historique sera perdu.`)) {
-      remove.mutate(a)
-    }
+    setToDelete(a)
   }
 
   const addictions = query.data?.addictions ?? []
@@ -199,6 +201,23 @@ export function AddictionsPage() {
         <AddictionFormModal open={formOpen} onClose={() => setFormOpen(false)} addiction={editing} />
         <RelapseModal addiction={relapsing} onClose={() => setRelapsing(null)} />
         <CoachDrawer addiction={coaching} onClose={() => setCoaching(null)} />
+
+        <ConfirmDialog
+          open={toDelete !== null}
+          onClose={() => setToDelete(null)}
+          onConfirm={() => toDelete && remove.mutate(toDelete)}
+          icon={Trash2}
+          tone="danger"
+          title={`Supprimer « ${toDelete?.name ?? ''} » ?`}
+          description={
+            <>
+              <p>Tout son historique (série, rechutes) sera perdu.</p>
+              <p>Cette opération est irréversible.</p>
+            </>
+          }
+          confirmLabel="Supprimer"
+          loading={remove.isPending}
+        />
       </FeatureGate>
     </div>
   )

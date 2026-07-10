@@ -7,7 +7,7 @@ interface LogoMarkProps {
 
 /**
  * Emblème One Mission : un anneau de progression (blanc) dont la tête est
- * orange, convergeant vers le point central — la mission.
+ * violette, convergeant vers le point central — la mission.
  * L'anneau hérite de `currentColor` : blanc sur fond sombre, noir sur fond clair.
  */
 export function LogoMark({ size = 32, className }: LogoMarkProps) {
@@ -34,13 +34,13 @@ export function LogoMark({ size = 32, className }: LogoMarkProps) {
         cx="24"
         cy="24"
         r="17"
-        stroke="var(--accent, #ff6a00)"
+        stroke="var(--accent, #8b5cf6)"
         strokeWidth="4.5"
         strokeLinecap="round"
         strokeDasharray="17 89.8"
         transform="rotate(66 24 24)"
       />
-      <circle cx="24" cy="24" r="5" fill="var(--accent, #ff6a00)" />
+      <circle cx="24" cy="24" r="5" fill="var(--accent, #8b5cf6)" />
     </svg>
   )
 }

@@ -19,6 +19,47 @@ export const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
 export const LANGUAGES = ['fr', 'en'] as const
 export type Language = (typeof LANGUAGES)[number]
 
+// ── Communication & notifications (marketing, opt-in RGPD) ───
+
+/**
+ * Préférences de communication marketing, indépendantes des notifications
+ * produit ci-dessus. `accountSecurity` reste toujours vrai : ces e-mails
+ * (connexion, mot de passe, vérification, abonnement…) protègent le compte
+ * et ne sont jamais désactivables, ni côté client ni côté serveur.
+ */
+export interface CommunicationPrefs {
+  /** Nouveautés de One Mission. */
+  productUpdates: boolean
+  /** Conseils de productivité. */
+  productivityTips: boolean
+  /** Annonces des nouvelles fonctionnalités. */
+  featureAnnouncements: boolean
+  /** Offres promotionnelles. */
+  promotionalOffers: boolean
+  /** Toujours vrai — e-mails de sécurité du compte. */
+  accountSecurity: boolean
+}
+
+/** Opt-in RGPD : tout est désactivé par défaut, sauf la sécurité du compte. */
+export const DEFAULT_COMMUNICATION_PREFS: CommunicationPrefs = {
+  productUpdates: false,
+  productivityTips: false,
+  featureAnnouncements: false,
+  promotionalOffers: false,
+  accountSecurity: true,
+}
+
+/**
+ * Une ligne de l'historique des communications — structure préparée pour un
+ * futur envoi réel (voir server/src/lib/marketingProvider.ts) : rien ne
+ * l'alimente encore, la carte « Historique » affiche une liste vide.
+ */
+export interface CommunicationLogEntry {
+  date: string
+  type: string
+  status: 'sent' | 'opened' | 'failed'
+}
+
 export interface PublicUser {
   id: string
   email: string
@@ -31,6 +72,9 @@ export interface PublicUser {
   language: Language
   notifications: NotificationPrefs
   showOnLeaderboard: boolean
+  /** Newsletter One Mission (nouveautés, conseils, annonces) — distincte des préférences ci-dessous. */
+  newsletterOptIn: boolean
+  communicationPrefs: CommunicationPrefs
   twoFactorEnabled: boolean
   level: number
   totalXp: number
@@ -48,6 +92,27 @@ export interface AuthResponse {
   accessToken: string
 }
 
+// ── Vérification d'e-mail ─────────────────────────────────────
+
+/** Réponse de l'inscription : aucune session, le compte reste inactif tant que l'e-mail n'est pas confirmé. */
+export interface RegisterResponse {
+  email: string
+  message: string
+}
+
+export type VerifyEmailStatus = 'success' | 'expired' | 'already_verified' | 'invalid'
+
+export interface VerifyEmailResponse {
+  status: VerifyEmailStatus
+}
+
+// ── Cloudflare Turnstile ──────────────────────────────────────
+
+export interface TurnstileSiteKeyResponse {
+  /** null si l'anti-robot n'est pas configuré côté serveur (développement). */
+  siteKey: string | null
+}
+
 // ── Bêta : signalements des testeurs ─────────────────────────
 
 export type FeedbackCategory = 'BUG' | 'SUGGESTION' | 'UI' | 'PERFORMANCE' | 'OTHER'
@@ -62,6 +127,25 @@ export interface FeedbackPayload {
   page?: string
   /** Capture d'écran compressée (data-URL image), optionnelle. */
   screenshot?: string
+}
+
+// ── Paiement (Stripe Checkout) ───────────────────────────────
+
+/** Adresse de facturation saisie sur la page de paiement. */
+export interface BillingDetailsPayload {
+  firstName: string
+  lastName: string
+  address: string
+  postalCode: string
+  city: string
+  /** Code pays ISO 3166-1 alpha-2 (FR, BE, …). */
+  country: string
+}
+
+export interface CheckoutPayload {
+  plan: 'PRO' | 'MAX'
+  billingCycle: 'MONTHLY' | 'YEARLY'
+  billing: BillingDetailsPayload
 }
 
 // ── Appareils connectés ──────────────────────────────────────
@@ -259,6 +343,8 @@ export interface JournalEntryDto {
 
 export interface LeaderboardEntry {
   rank: number
+  /** Identifiant du joueur — permet d'ouvrir son profil public. */
+  userId: string
   username: string
   avatarUrl: string | null
   level: number
@@ -336,6 +422,37 @@ export interface ProfileStats {
   weeks: ProfileWeek[]
   addictions: AddictionStreakStat[]
   categories: CategoryStat[]
+}
+
+// ── Profil public (consultation depuis le classement) ───────
+
+/**
+ * Identité publique d'un joueur. Ne contient AUCUNE donnée personnelle :
+ * ni e-mail, ni nom réel, ni téléphone, ni paramètres de compte.
+ */
+export interface PublicPlayer {
+  id: string
+  username: string
+  avatarUrl: string | null
+  level: number
+  totalXp: number
+  currentXp: number
+  currentStreak: number
+  longestStreak: number
+  /** Date d'inscription (affichée sur le profil public). */
+  createdAt: string
+}
+
+/**
+ * Statistiques publiques : sous-ensemble de ProfileStats sans le contenu
+ * privé (noms des addictions, nombre de rechutes, répartition par catégorie).
+ */
+export type PublicProfileStats = Omit<ProfileStats, 'addictions' | 'categories' | 'relapsesTotal'>
+
+/** Réponse de GET /api/leaderboard/:userId — le profil public d'un joueur. */
+export interface PublicProfileResponse {
+  user: PublicPlayer
+  stats: PublicProfileStats
 }
 
 export interface MainQuestDto {

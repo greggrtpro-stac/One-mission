@@ -3,6 +3,10 @@ import type { Quest } from '../../generated/prisma/client.js'
 import { prisma } from '../../lib/prisma.js'
 import { ApiError } from '../../middleware/error.js'
 import { awardXp } from '../gamification/gamification.service.js'
+import {
+  ensureDefaultCategories,
+  QUEST_ENUM_TO_DEFAULT_CATEGORY_NAME,
+} from '../planning/planning-categories.service.js'
 import { toQuestDto } from './quests.mapper.js'
 
 async function getOwnedQuest(userId: string, questId: string): Promise<Quest> {
@@ -35,9 +39,14 @@ export async function createQuest(
     dueDate: string
     dueTime?: string | null
     /** Créneau optionnel : la quête apparaît aussi dans le Planning. */
-    planning?: { startAt: string; endAt: string; color?: string } | null
+    planning?: { startAt: string; endAt: string } | null
   },
 ): Promise<Quest> {
+  // Catégories de Planning créées paresseusement si besoin, AVANT la
+  // transaction (ensureDefaultCategories utilise le client Prisma partagé,
+  // pas la transaction — la garantie d'existence doit être acquise avant).
+  if (input.planning) await ensureDefaultCategories(userId)
+
   return prisma.$transaction(async (tx) => {
     const quest = await tx.quest.create({
       data: {
@@ -53,17 +62,25 @@ export async function createQuest(
     })
 
     if (input.planning) {
+      // La quête garde son propre enum de catégorie ; l'événement Planning lié
+      // reprend la catégorie personnalisée du même nom si l'utilisateur ne l'a
+      // ni renommée ni supprimée, sinon la catégorie de repli (isDefault).
+      const preferredName = QUEST_ENUM_TO_DEFAULT_CATEGORY_NAME[input.category] ?? 'Autre'
+      const category =
+        (await tx.planningCategory.findFirst({ where: { userId, name: preferredName } })) ??
+        (await tx.planningCategory.findFirst({ where: { userId, isDefault: true } }))
+      if (!category) throw new ApiError(500, 'Aucune catégorie de planning disponible')
+
       await tx.planningEvent.create({
         data: {
           userId,
           questId: quest.id,
           title: input.title,
           description: input.description ?? null,
-          category: input.category as Quest['category'],
+          categoryId: category.id,
           priority: input.priority as Quest['priority'],
           startAt: new Date(input.planning.startAt),
           endAt: new Date(input.planning.endAt),
-          ...(input.planning.color && { color: input.planning.color }),
         },
       })
     }

@@ -15,13 +15,25 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+/** Données minimales pour évaluer les succès — satisfaites par le profil privé ET le profil public. */
+export type AchievementUser = Pick<PublicUser, 'level' | 'longestStreak'>
+export type AchievementStats = Pick<
+  ProfileStats,
+  | 'questsDone'
+  | 'weeklyCompletions'
+  | 'focusSeconds'
+  | 'longestCleanDays'
+  | 'journalEntries'
+  | 'mainQuestsDone'
+>
+
 export interface Achievement {
   id: string
   title: string
   description: string
   icon: LucideIcon
   /** Progression vers le succès : atteint quand current >= target. */
-  progress: (user: PublicUser, stats: ProfileStats) => { current: number; target: number }
+  progress: (user: AchievementUser, stats: AchievementStats) => { current: number; target: number }
 }
 
 const HOUR = 3600

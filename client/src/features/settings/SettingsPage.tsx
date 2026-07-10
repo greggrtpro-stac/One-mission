@@ -1,5 +1,7 @@
 import {
   DEFAULT_NOTIFICATIONS,
+  isPasswordAcceptable,
+  PASSWORD_MIN_LENGTH,
   type Language,
   type NotificationPrefs,
   type SessionDevice,
@@ -15,6 +17,7 @@ import {
   Globe,
   KeyRound,
   LogOut,
+  Mail,
   Monitor,
   MonitorSmartphone,
   Moon,
@@ -36,9 +39,24 @@ import {
   updateProfile,
   type ProfilePayload,
 } from '@/api/users'
-import { Avatar, Badge, Button, Card, Input, Modal, Select, Spinner, Toggle } from '@/components/ui'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  Input,
+  Modal,
+  PasswordInput,
+  Select,
+  Spinner,
+  Toggle,
+} from '@/components/ui'
+import { PasswordChecklist } from '@/features/auth/PasswordChecklist'
+import { CommunicationCards } from './CommunicationCards'
 import { cn } from '@/lib/cn'
 import { LANGUAGE_OPTIONS, useI18n } from '@/lib/i18n'
+import { chooseTheme } from '@/lib/themePreference'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore, type ThemeName } from '@/stores/theme'
 
@@ -249,17 +267,15 @@ function AccountCard() {
 
 function PreferencesCards() {
   const user = useAuthStore((s) => s.user)!
-  const { theme, setTheme } = useThemeStore()
+  const theme = useThemeStore((s) => s.theme)
   const queryClient = useQueryClient()
 
-  // Thème, langue et interrupteurs s'appliquent immédiatement et suivent le compte.
+  // Langue et interrupteurs s'appliquent immédiatement et suivent le compte.
   const save = useMutation({ mutationFn: (payload: ProfilePayload) => updateProfile(payload) })
   const exportData = useMutation({ mutationFn: downloadMyData })
 
-  function handleTheme(t: ThemeName) {
-    setTheme(t)
-    save.mutate({ theme: t })
-  }
+  // Le thème passe par le point d'entrée unique (application + compte).
+  const handleTheme = chooseTheme
 
   const notifications: NotificationPrefs = { ...DEFAULT_NOTIFICATIONS, ...user.notifications }
   function setNotification(key: keyof NotificationPrefs, value: boolean) {
@@ -509,44 +525,34 @@ function DevicesCards() {
       </Card>
 
       {/* Confirmation — un seul appareil */}
-      <Modal open={toRevoke !== null} onClose={() => setToRevoke(null)} title="Se déconnecter ?">
-        <p className="text-sm text-muted">
-          {toRevoke?.isCurrent
+      <ConfirmDialog
+        open={toRevoke !== null}
+        onClose={() => setToRevoke(null)}
+        onConfirm={() => toRevoke && revoke.mutate(toRevoke)}
+        icon={LogOut}
+        tone="warning"
+        title="Se déconnecter ?"
+        description={
+          toRevoke?.isCurrent
             ? "C'est l'appareil que tu utilises en ce moment : tu seras redirigé vers la page de connexion."
-            : 'La session de cet appareil sera fermée. Les autres appareils restent connectés.'}
-        </p>
-        <div className="mt-5 flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => setToRevoke(null)}>
-            Annuler
-          </Button>
-          <Button
-            variant="danger"
-            loading={revoke.isPending}
-            onClick={() => toRevoke && revoke.mutate(toRevoke)}
-          >
-            Se déconnecter
-          </Button>
-        </div>
-      </Modal>
+            : 'La session de cet appareil sera fermée. Les autres appareils restent connectés.'
+        }
+        confirmLabel="Se déconnecter"
+        loading={revoke.isPending}
+      />
 
       {/* Confirmation — tous les appareils */}
-      <Modal
+      <ConfirmDialog
         open={confirmLogoutAll}
         onClose={() => setConfirmLogoutAll(false)}
+        onConfirm={() => logoutAll.mutate()}
+        icon={LogOut}
+        tone="warning"
         title="Déconnecter tous les appareils ?"
-      >
-        <p className="text-sm text-muted">
-          Toutes tes sessions seront fermées immédiatement, y compris celle-ci.
-        </p>
-        <div className="mt-5 flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => setConfirmLogoutAll(false)}>
-            Annuler
-          </Button>
-          <Button loading={logoutAll.isPending} onClick={() => logoutAll.mutate()}>
-            Tout déconnecter
-          </Button>
-        </div>
-      </Modal>
+        description="Toutes tes sessions seront fermées immédiatement, y compris celle-ci. Tu devras te reconnecter partout."
+        confirmLabel="Déconnecter"
+        loading={logoutAll.isPending}
+      />
     </div>
   )
 }
@@ -575,8 +581,8 @@ function PasswordCard() {
   function handlePassword(e: FormEvent) {
     e.preventDefault()
     setPwdError(null)
-    if (pwd.next.length < 8) {
-      setPwdError('Le nouveau mot de passe doit faire au moins 8 caractères.')
+    if (!isPasswordAcceptable(pwd.next)) {
+      setPwdError('Le nouveau mot de passe ne remplit pas encore tous les critères ci-dessous.')
       return
     }
     if (pwd.next !== pwd.confirm) {
@@ -600,31 +606,36 @@ function PasswordCard() {
       )}
       <form onSubmit={handlePassword} className="mt-4 flex max-w-md flex-col gap-4">
         {user.hasPassword && (
-          <Input
+          <PasswordInput
             label="Mot de passe actuel"
-            type="password"
             required
             autoComplete="current-password"
             value={pwd.current}
             onChange={(e) => setPwd((p) => ({ ...p, current: e.target.value }))}
           />
         )}
-        <Input
-          label="Nouveau mot de passe"
-          type="password"
-          required
-          autoComplete="new-password"
-          hint="8 caractères minimum."
-          value={pwd.next}
-          onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))}
-        />
-        <Input
+        <div className="flex flex-col gap-2">
+          <PasswordInput
+            label="Nouveau mot de passe"
+            required
+            autoComplete="new-password"
+            minLength={PASSWORD_MIN_LENGTH}
+            value={pwd.next}
+            onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))}
+          />
+          <PasswordChecklist password={pwd.next} />
+        </div>
+        <PasswordInput
           label="Confirmer le nouveau mot de passe"
-          type="password"
           required
           autoComplete="new-password"
           value={pwd.confirm}
           onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))}
+          error={
+            pwd.confirm.length > 0 && pwd.next !== pwd.confirm
+              ? 'Les deux mots de passe ne correspondent pas'
+              : undefined
+          }
         />
 
         {(pwdError || savePassword.error) && (
@@ -716,9 +727,8 @@ function SecurityCards() {
           }}
         >
           {user.hasPassword && (
-            <Input
+            <PasswordInput
               label="Confirme avec ton mot de passe"
-              type="password"
               required
               autoComplete="current-password"
               value={deletePwd}
@@ -760,6 +770,11 @@ export function SettingsPage() {
       <SectionTitle icon={Sun}>{t('settings.preferences')}</SectionTitle>
       <div className="mt-3">
         <PreferencesCards />
+      </div>
+
+      <SectionTitle icon={Mail}>Communication et notifications</SectionTitle>
+      <div className="mt-3">
+        <CommunicationCards />
       </div>
 
       <SectionTitle icon={MonitorSmartphone}>Appareils connectés</SectionTitle>

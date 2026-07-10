@@ -1,21 +1,17 @@
 import {
-  CATEGORY_LABELS,
   DIFFICULTIES,
   DIFFICULTY_LABELS,
-  EVENT_COLORS,
   PRIORITY_LABELS,
   PRIORITIES,
-  QUEST_CATEGORIES,
   REMINDER_OPTIONS,
   XP_BY_DIFFICULTY,
   type PlanningEventDto,
 } from '@one-mission/shared'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Swords, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { planningApi, type PlanningEventPayload } from '@/api/planning'
-import { Badge, Button, Input, Modal, Select, Textarea } from '@/components/ui'
-import { cn } from '@/lib/cn'
+import { planningApi, planningCategoriesApi, type PlanningEventPayload } from '@/api/planning'
+import { Badge, Button, ConfirmDialog, Input, Modal, Select, Textarea } from '@/components/ui'
 import { fromInputs, toDateInput, toTimeInput } from './time'
 
 interface EventModalProps {
@@ -31,8 +27,7 @@ interface FormState {
   title: string
   description: string
   notes: string
-  color: string
-  category: string
+  categoryId: string
   priority: string
   date: string
   startTime: string
@@ -45,8 +40,7 @@ const emptyForm = (slot?: { start: Date; end: Date } | null): FormState => ({
   title: '',
   description: '',
   notes: '',
-  color: EVENT_COLORS[0],
-  category: 'AUTRE',
+  categoryId: '',
   priority: 'MEDIUM',
   date: toDateInput(slot?.start ?? new Date()),
   startTime: toTimeInput(slot?.start ?? new Date()),
@@ -59,6 +53,14 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
   const [form, setForm] = useState<FormState>(() => emptyForm(slot))
   const [timeError, setTimeError] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState('MEDIUM')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const categoriesQuery = useQuery({
+    queryKey: ['planning-categories'],
+    queryFn: planningCategoriesApi.list,
+    enabled: open,
+  })
+  const categories = categoriesQuery.data?.categories ?? []
 
   useEffect(() => {
     if (!open) return
@@ -71,8 +73,7 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
         title: event.title,
         description: event.description ?? '',
         notes: event.notes ?? '',
-        color: event.color,
-        category: event.category,
+        categoryId: event.category.id,
         priority: event.priority,
         date: toDateInput(start),
         startTime: toTimeInput(start),
@@ -83,6 +84,17 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
       setForm(emptyForm(slot))
     }
   }, [open, event, slot])
+
+  // Catégorie par défaut à la création, une fois la liste chargée (une
+  // catégorie de repli existe toujours — voir ensureDefaultCategories côté serveur).
+  useEffect(() => {
+    const list = categoriesQuery.data?.categories
+    if (event || form.categoryId || !list || list.length === 0) return
+    const fallback = list.find((c) => c.isDefault) ?? list[0]!
+    setForm((f) => ({ ...f, categoryId: fallback.id }))
+  }, [event, form.categoryId, categoriesQuery.data])
+
+  const selectedCategory = categories.find((c) => c.id === form.categoryId)
 
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ['planning'] })
@@ -95,8 +107,7 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
         title: form.title,
         description: form.description.trim() || null,
         notes: form.notes.trim() || null,
-        color: form.color,
-        category: form.category,
+        categoryId: form.categoryId,
         priority: form.priority,
         startAt: fromInputs(form.date, form.startTime).toISOString(),
         endAt: fromInputs(form.date, form.endTime).toISOString(),
@@ -114,6 +125,7 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
     mutationFn: () => planningApi.remove(event!.id),
     onSuccess: () => {
       invalidate()
+      setConfirmDelete(false)
       onClose()
     },
   })
@@ -147,9 +159,7 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
   }
 
   function handleDelete() {
-    if (event && window.confirm(`Supprimer l'événement « ${event.title} » ?`)) {
-      remove.mutate()
-    }
+    if (event) setConfirmDelete(true)
   }
 
   const error = save.error ?? remove.error ?? convert.error
@@ -157,7 +167,12 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        // Le dialogue de confirmation gère sa propre fermeture (Échap) : ne
+        // pas fermer aussi le formulaire par-dessous tant qu'il est ouvert.
+        if (confirmDelete) return
+        onClose()
+      }}
       title={event ? "Modifier l'événement" : 'Nouvel événement'}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -209,37 +224,30 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink">Couleur</span>
-          <div className="flex flex-wrap gap-2">
-            {EVENT_COLORS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                aria-label={`Couleur ${color}`}
-                onClick={() => set('color', color)}
-                className={cn(
-                  'size-7 rounded-full transition-transform hover:scale-110',
-                  form.color === color && 'ring-2 ring-accent ring-offset-2 ring-offset-surface',
-                )}
-                style={{ background: color }}
-              />
-            ))}
-          </div>
-        </div>
-
         <div className="grid grid-cols-2 gap-3">
-          <Select
-            label="Catégorie"
-            value={form.category}
-            onChange={(e) => set('category', e.target.value)}
-          >
-            {QUEST_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_LABELS[c]}
-              </option>
-            ))}
-          </Select>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink">Catégorie</span>
+            <div className="flex items-center gap-2">
+              <span
+                className="size-3.5 shrink-0 rounded-full"
+                style={{ background: selectedCategory?.color ?? 'var(--surface-3)' }}
+                aria-hidden
+              />
+              <div className="flex-1">
+                <Select
+                  value={form.categoryId}
+                  onChange={(e) => set('categoryId', e.target.value)}
+                  disabled={categoriesQuery.isLoading}
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon} {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          </div>
           <Select
             label="Priorité"
             value={form.priority}
@@ -338,6 +346,23 @@ export function EventModal({ open, onClose, slot, event }: EventModalProps) {
           </div>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => remove.mutate()}
+        icon={Trash2}
+        tone="danger"
+        title={`Supprimer l'événement « ${event?.title ?? ''} » ?`}
+        description={
+          <>
+            <p>Cet événement sera définitivement supprimé du Planning.</p>
+            <p>Cette opération est irréversible.</p>
+          </>
+        }
+        confirmLabel="Supprimer"
+        loading={remove.isPending}
+      />
     </Modal>
   )
 }

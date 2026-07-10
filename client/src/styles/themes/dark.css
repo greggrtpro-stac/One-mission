@@ -14,14 +14,16 @@
   --muted: #9c9ca6;
   --faint: #62626e;
 
-  --accent: #ff6a00;
-  --accent-hover: #ff8329;
-  --accent-soft: rgba(255, 106, 0, 0.14);
-  --accent-glow: rgba(255, 106, 0, 0.35);
+  /* Violet une nuance plus claire que le thème clair (#7C3AED) : sur fond
+     sombre, le #7C3AED brut tombe à ~3,4:1 en texte — illisible en petit. */
+  --accent: #8b5cf6;
+  --accent-hover: #a78bfa;
+  --accent-soft: rgba(139, 92, 246, 0.14);
+  --accent-glow: rgba(139, 92, 246, 0.35);
   --on-accent: #ffffff;
 
   /* Marques de graphiques (validées contre la surface sombre) */
-  --chart-1: #e65c00;
+  --chart-1: #7c3aed;
   --chart-muted: #4a4a55;
 
   --success: #30c960;

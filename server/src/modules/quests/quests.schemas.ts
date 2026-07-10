@@ -25,10 +25,6 @@ const questPlanningSchema = z
   .object({
     startAt: z.iso.datetime(),
     endAt: z.iso.datetime(),
-    color: z
-      .string()
-      .regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur attendue au format #RRGGBB')
-      .optional(),
   })
   .refine((v) => new Date(v.endAt) > new Date(v.startAt), {
     message: "L'heure de fin doit être après l'heure de début",

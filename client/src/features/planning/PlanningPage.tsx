@@ -1,15 +1,12 @@
-import {
-  CATEGORY_LABELS,
-  type PlanningEventDto,
-  type QuestCategory,
-} from '@one-mission/shared'
+import type { PlanningEventDto } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { useRef, useState } from 'react'
-import { planningApi } from '@/api/planning'
+import { ChevronDown, ChevronLeft, ChevronRight, ListFilter, Plus, Settings2 } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { planningApi, planningCategoriesApi } from '@/api/planning'
 import { Button, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { applyXpResult } from '@/stores/xpFx'
+import { CategoryManagerModal } from './CategoryManagerModal'
 import { EventModal } from './EventModal'
 import { WeekGrid } from './WeekGrid'
 import { WeekPicker } from './WeekPicker'
@@ -32,6 +29,9 @@ export function PlanningPage() {
   const [fineGrid, setFineGrid] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false)
+  // Catégories décochées dans le filtre « Afficher uniquement » — vide = tout visible.
+  const [hiddenCategoryIds, setHiddenCategoryIds] = useState<Set<string>>(new Set())
   const navRef = useRef<HTMLDivElement>(null)
 
   const weekKey = toDateInput(weekStart)
@@ -47,6 +47,25 @@ export function PlanningPage() {
     queryKey: ['planning-stats', weekKey],
     queryFn: () => planningApi.stats(from, to),
   })
+  const categoriesQuery = useQuery({
+    queryKey: ['planning-categories'],
+    queryFn: planningCategoriesApi.list,
+  })
+  const categories = categoriesQuery.data?.categories ?? []
+
+  const visibleEvents = useMemo(
+    () => (eventsQuery.data?.events ?? []).filter((e) => !hiddenCategoryIds.has(e.category.id)),
+    [eventsQuery.data, hiddenCategoryIds],
+  )
+
+  function toggleCategoryVisible(categoryId: string) {
+    setHiddenCategoryIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(categoryId)) next.delete(categoryId)
+      else next.add(categoryId)
+      return next
+    })
+  }
 
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ['planning'] })
@@ -110,9 +129,14 @@ export function PlanningPage() {
             Organise tes semaines heure par heure et suis ce que tu accomplis vraiment.
           </p>
         </div>
-        <Button onClick={openCreateDefault}>
-          <Plus size={16} /> Nouvel événement
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setCategoryManagerOpen(true)}>
+            <Settings2 size={16} /> Gérer les catégories
+          </Button>
+          <Button onClick={openCreateDefault}>
+            <Plus size={16} /> Nouvel événement
+          </Button>
+        </div>
       </div>
 
       {/* Statistiques de la semaine affichée */}
@@ -129,9 +153,14 @@ export function PlanningPage() {
           {stats && stats.categories.length > 0 ? (
             <div className="mt-2 flex flex-col gap-1.5">
               {stats.categories.slice(0, 3).map((c) => (
-                <div key={c.category} className="flex items-center gap-2">
+                <div key={c.categoryId} className="flex items-center gap-1.5">
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: c.color }}
+                    aria-hidden
+                  />
                   <span className="w-16 truncate text-[11px] text-muted">
-                    {CATEGORY_LABELS[c.category as QuestCategory] ?? c.category}
+                    {c.icon} {c.name}
                   </span>
                   <span
                     className="relative h-1.5 flex-1 overflow-hidden rounded-full"
@@ -156,6 +185,40 @@ export function PlanningPage() {
           )}
         </div>
       </div>
+
+      {/* Filtre d'affichage par catégorie */}
+      {categories.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          <span className="flex items-center gap-1 text-xs font-medium text-muted">
+            <ListFilter size={13} /> Afficher :
+          </span>
+          {categories.map((c) => {
+            const visible = !hiddenCategoryIds.has(c.id)
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggleCategoryVisible(c.id)}
+                aria-pressed={visible}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                  visible
+                    ? 'border-line bg-surface text-ink'
+                    : 'border-line/60 bg-transparent text-faint',
+                )}
+              >
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ background: c.color, opacity: visible ? 1 : 0.4 }}
+                  aria-hidden
+                />
+                <span className={cn(!visible && 'opacity-40')}>{c.icon}</span>
+                {c.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Navigation entre les semaines */}
       <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -229,7 +292,7 @@ export function PlanningPage() {
         ) : (
           <WeekGrid
             weekStart={weekStart}
-            events={eventsQuery.data?.events ?? []}
+            events={visibleEvents}
             hourHeight={hourHeight}
             showHalfHours={fineGrid}
             onCreateSlot={(start, end) => setModal({ slot: { start, end } })}
@@ -245,6 +308,11 @@ export function PlanningPage() {
         onClose={() => setModal(null)}
         slot={modal?.slot ?? null}
         event={modal?.event}
+      />
+
+      <CategoryManagerModal
+        open={categoryManagerOpen}
+        onClose={() => setCategoryManagerOpen(false)}
       />
     </div>
   )

@@ -1,4 +1,10 @@
-import type { Language, NotificationPrefs, PublicUser, SessionsResponse } from '@one-mission/shared'
+import type {
+  CommunicationPrefs,
+  Language,
+  NotificationPrefs,
+  PublicUser,
+  SessionsResponse,
+} from '@one-mission/shared'
 import { useAuthStore } from '@/stores/auth'
 import { api, http } from './http'
 
@@ -13,10 +19,19 @@ export interface ProfilePayload {
   language?: Language
   notifications?: NotificationPrefs
   showOnLeaderboard?: boolean
+  newsletterOptIn?: boolean
+  communicationPrefs?: CommunicationPrefs
 }
 
 export async function updateProfile(payload: ProfilePayload): Promise<PublicUser> {
   const data = await http.patch<{ user: PublicUser }>('/api/users/me', payload)
+  useAuthStore.getState().setUser(data.user)
+  return data.user
+}
+
+/** Désinscription en un clic des communications marketing (sécurité toujours conservée). */
+export async function unsubscribeMarketing(): Promise<PublicUser> {
+  const data = await http.post<{ user: PublicUser }>('/api/users/me/unsubscribe-marketing')
   useAuthStore.getState().setUser(data.user)
   return data.user
 }

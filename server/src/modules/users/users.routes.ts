@@ -1,23 +1,39 @@
-import { LANGUAGES } from '@one-mission/shared'
-import argon2 from 'argon2'
+import { DEFAULT_COMMUNICATION_PREFS, LANGUAGES } from '@one-mission/shared'
 import type { Request, Response } from 'express'
 import { Router } from 'express'
 import { z } from 'zod'
+import { marketingProvider } from '../../lib/marketingProvider.js'
+import { hashPassword, verifyPassword } from '../../lib/passwords.js'
 import { prisma } from '../../lib/prisma.js'
 import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
 import { REFRESH_COOKIE, refreshCookieOptions } from '../auth/auth.routes.js'
-import { passwordSchema, usernameSchema } from '../auth/auth.schemas.js'
+import * as auth from '../auth/auth.service.js'
+import { emailSchema, nameSchema, passwordSchema, usernameSchema } from '../auth/auth.schemas.js'
 import { toPublicUser } from './users.mapper.js'
 
+/**
+ * Préférences de communication marketing — accountSecurity est TOUJOURS vrai
+ * quel que soit ce que le client envoie (forcé après validation ci-dessous) :
+ * ces e-mails protègent le compte et ne sont jamais désactivables.
+ */
+const communicationPrefsSchema = z.object({
+  productUpdates: z.boolean(),
+  productivityTips: z.boolean(),
+  featureAnnouncements: z.boolean(),
+  promotionalOffers: z.boolean(),
+  accountSecurity: z.boolean(),
+})
+
 const updateProfileSchema = z.object({
-  firstName: z.string().max(50).nullable().optional(),
-  lastName: z.string().max(50).nullable().optional(),
+  firstName: nameSchema.nullable().optional(),
+  lastName: nameSchema.nullable().optional(),
   username: usernameSchema.optional(),
-  email: z.email('Adresse e-mail invalide').optional(),
+  email: emailSchema.optional(),
   phone: z
     .string()
+    .trim()
     .max(30)
     .regex(/^[+\d][\d\s().-]*$/, 'Numéro de téléphone invalide')
     .nullable()
@@ -44,6 +60,8 @@ const updateProfileSchema = z.object({
     })
     .optional(),
   showOnLeaderboard: z.boolean().optional(),
+  newsletterOptIn: z.boolean().optional(),
+  communicationPrefs: communicationPrefsSchema.optional(),
 })
 
 const changePasswordSchema = z.object({
@@ -82,8 +100,37 @@ usersRouter.patch('/me', validateBody(updateProfileSchema), async (req: Request,
       throw new ApiError(409, 'Ce pseudo est déjà pris', 'USERNAME_TAKEN')
     }
   }
+  // Défense en profondeur : même si le client envoyait accountSecurity=false,
+  // ces e-mails restent toujours activés (voir aussi le mapper toPublicUser).
+  if (data.communicationPrefs) data.communicationPrefs.accountSecurity = true
 
   const user = await prisma.user.update({ where: { id: userId }, data })
+
+  if (data.newsletterOptIn !== undefined || data.communicationPrefs) {
+    const prefs = { ...DEFAULT_COMMUNICATION_PREFS, ...(data.communicationPrefs ?? {}) }
+    void marketingProvider.syncContact(user.email, prefs, user.newsletterOptIn)
+  }
+
+  res.json({ user: toPublicUser(user) })
+})
+
+/**
+ * Désinscription en un clic de toutes les communications marketing
+ * (newsletter + préférences), en conservant obligatoirement les e-mails de
+ * sécurité — indépendamment de ce que le client pourrait envoyer.
+ */
+usersRouter.post('/me/unsubscribe-marketing', async (req: Request, res: Response) => {
+  const userId = getUserId(req)
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      newsletterOptIn: false,
+      communicationPrefs: { ...DEFAULT_COMMUNICATION_PREFS, accountSecurity: true },
+    },
+  })
+
+  void marketingProvider.unsubscribeAll(user.email)
   res.json({ user: toPublicUser(user) })
 })
 
@@ -100,15 +147,33 @@ usersRouter.patch(
     // Un compte Google sans mot de passe peut en définir un directement.
     if (user.passwordHash) {
       if (!currentPassword) throw new ApiError(400, 'Mot de passe actuel requis')
-      const ok = await argon2.verify(user.passwordHash, currentPassword)
+      const ok = await verifyPassword(user.passwordHash, currentPassword)
       if (!ok) throw new ApiError(401, 'Mot de passe actuel incorrect', 'INVALID_CREDENTIALS')
     }
 
     await prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: await argon2.hash(newPassword) },
+      data: { passwordHash: await hashPassword(newPassword) },
     })
-    res.json({ message: 'Mot de passe mis à jour' })
+
+    // Sécurité : un changement de mot de passe révoque TOUTES les sessions
+    // (si le mot de passe avait fuité, l'attaquant perd la sienne), puis une
+    // session neuve est immédiatement réémise pour cet appareil — l'utilisateur
+    // reste connecté ici, les autres appareils sont déconnectés.
+    // (Le cookie refresh est limité au path /api/auth : illisible ici, mais on
+    // peut en poser un nouveau.)
+    await prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    })
+    const refreshToken = await auth.issueRefreshToken(userId, {
+      userAgent: req.get('user-agent') ?? null,
+      ip: req.ip ?? null,
+    })
+
+    res
+      .cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions)
+      .json({ message: 'Mot de passe mis à jour' })
   },
 )
 
@@ -178,7 +243,7 @@ usersRouter.delete(
 
     if (user.passwordHash) {
       if (!password) throw new ApiError(400, 'Mot de passe requis pour supprimer le compte')
-      const ok = await argon2.verify(user.passwordHash, password)
+      const ok = await verifyPassword(user.passwordHash, password)
       if (!ok) throw new ApiError(401, 'Mot de passe incorrect', 'INVALID_CREDENTIALS')
     }
 

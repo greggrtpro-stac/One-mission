@@ -8,12 +8,13 @@ import type { PlanningEvent, Quest } from '../../generated/prisma/client.js'
 import { prisma } from '../../lib/prisma.js'
 import { ApiError } from '../../middleware/error.js'
 import { completeQuest, uncompleteQuest } from '../quests/quests.service.js'
+import { ensureDefaultCategories, getOwnedCategory } from './planning-categories.service.js'
 import { toPlanningEventDto, type PlanningEventWithQuest } from './planning.mapper.js'
 
 async function getOwnedEvent(userId: string, eventId: string): Promise<PlanningEventWithQuest> {
   const event = await prisma.planningEvent.findFirst({
     where: { id: eventId, userId },
-    include: { quest: true },
+    include: { quest: true, planningCategory: true },
   })
   if (!event) throw new ApiError(404, 'Événement introuvable')
   return event
@@ -25,9 +26,10 @@ export async function listEvents(
   from: Date,
   to: Date,
 ): Promise<PlanningEventWithQuest[]> {
+  await ensureDefaultCategories(userId)
   return prisma.planningEvent.findMany({
     where: { userId, startAt: { lt: to }, endAt: { gt: from } },
-    include: { quest: true },
+    include: { quest: true, planningCategory: true },
     orderBy: { startAt: 'asc' },
     take: 1000,
   })
@@ -37,8 +39,7 @@ export interface EventInput {
   title: string
   description?: string | null
   notes?: string | null
-  color: string
-  category: string
+  categoryId: string
   priority: string
   startAt: string
   endAt: string
@@ -49,20 +50,20 @@ export async function createEvent(
   userId: string,
   input: EventInput,
 ): Promise<PlanningEventWithQuest> {
+  await getOwnedCategory(userId, input.categoryId)
   const event = await prisma.planningEvent.create({
     data: {
       userId,
       title: input.title,
       description: input.description ?? null,
       notes: input.notes ?? null,
-      color: input.color,
-      category: input.category as PlanningEvent['category'],
+      categoryId: input.categoryId,
       priority: input.priority as PlanningEvent['priority'],
       startAt: new Date(input.startAt),
       endAt: new Date(input.endAt),
       reminderMinutes: input.reminderMinutes ?? null,
     },
-    include: { quest: true },
+    include: { quest: true, planningCategory: true },
   })
   return event
 }
@@ -73,6 +74,8 @@ export async function updateEvent(
   input: Partial<EventInput> & { status?: 'PLANNED' | 'CANCELLED' },
 ): Promise<PlanningEventWithQuest> {
   const event = await getOwnedEvent(userId, eventId)
+
+  if (input.categoryId !== undefined) await getOwnedCategory(userId, input.categoryId)
 
   // Cohérence temporelle même quand une seule des deux bornes change (resize/drag).
   const startAt = input.startAt !== undefined ? new Date(input.startAt) : event.startAt
@@ -85,10 +88,7 @@ export async function updateEvent(
       ...(input.title !== undefined && { title: input.title }),
       ...(input.description !== undefined && { description: input.description }),
       ...(input.notes !== undefined && { notes: input.notes }),
-      ...(input.color !== undefined && { color: input.color }),
-      ...(input.category !== undefined && {
-        category: input.category as PlanningEvent['category'],
-      }),
+      ...(input.categoryId !== undefined && { categoryId: input.categoryId }),
       ...(input.priority !== undefined && {
         priority: input.priority as PlanningEvent['priority'],
       }),
@@ -101,7 +101,7 @@ export async function updateEvent(
         reminderSentAt: null,
       }),
     },
-    include: { quest: true },
+    include: { quest: true, planningCategory: true },
   })
 }
 
@@ -161,7 +161,10 @@ export async function convertToQuest(
         userId,
         title: event.title,
         description: event.description,
-        category: event.category,
+        // Les catégories de Planning (personnalisées par utilisateur) et des
+        // Quêtes (enum figé) sont désormais deux systèmes découplés : pas de
+        // correspondance directe possible dans ce sens, on retombe sur AUTRE.
+        category: 'AUTRE',
         priority: event.priority,
         difficulty: input.difficulty as Quest['difficulty'],
         dueDate: new Date(input.dueDate),
@@ -179,9 +182,13 @@ export async function convertToQuest(
 
 /** Statistiques sur [from, to[ — les durées sont bornées à la plage demandée. */
 export async function getStats(userId: string, from: Date, to: Date): Promise<PlanningStats> {
-  const events = await prisma.planningEvent.findMany({
-    where: { userId, startAt: { lt: to }, endAt: { gt: from } },
-  })
+  const [events, categories] = await Promise.all([
+    prisma.planningEvent.findMany({
+      where: { userId, startAt: { lt: to }, endAt: { gt: from } },
+    }),
+    prisma.planningCategory.findMany({ where: { userId } }),
+  ])
+  const categoryById = new Map(categories.map((c) => [c.id, c]))
 
   const clippedMinutes = (e: PlanningEvent) => {
     const start = Math.max(e.startAt.getTime(), from.getTime())
@@ -199,8 +206,12 @@ export async function getStats(userId: string, from: Date, to: Date): Promise<Pl
     const minutes = clippedMinutes(event)
     plannedMinutes += minutes
 
-    const stat = byCategory.get(event.category) ?? {
-      category: event.category,
+    const category = categoryById.get(event.categoryId)
+    const stat = byCategory.get(event.categoryId) ?? {
+      categoryId: event.categoryId,
+      name: category?.name ?? 'Autre',
+      color: category?.color ?? '#6B7280',
+      icon: category?.icon ?? '📁',
       plannedMinutes: 0,
       doneMinutes: 0,
     }
@@ -210,7 +221,7 @@ export async function getStats(userId: string, from: Date, to: Date): Promise<Pl
       eventsDone += 1
       stat.doneMinutes += minutes
     }
-    byCategory.set(event.category, stat)
+    byCategory.set(event.categoryId, stat)
   }
 
   return {

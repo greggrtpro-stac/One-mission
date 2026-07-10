@@ -11,19 +11,30 @@ export const PLANNING_STATUS_LABELS: Record<PlanningEventStatus, string> = {
   CANCELLED: 'Annulé',
 }
 
-/** Palette proposée pour les événements (l'utilisateur choisit librement parmi ces teintes). */
-export const EVENT_COLORS = [
-  '#6366F1', // indigo
-  '#3B82F6', // bleu
-  '#06B6D4', // cyan
-  '#10B981', // émeraude
-  '#F59E0B', // ambre
-  '#F97316', // orange
-  '#F43F5E', // rose
-  '#8B5CF6', // violet
+/**
+ * Palette d'attribution automatique des couleurs de catégorie : quand
+ * l'utilisateur crée une catégorie sans choisir de couleur, on lui attribue
+ * la première de cette liste non encore utilisée par une de ses catégories
+ * existantes (on reboucle une fois les 9 épuisées). Toujours proposée aussi
+ * comme choix rapide dans le sélecteur de couleur du gestionnaire.
+ */
+export const AUTO_CATEGORY_COLORS = [
+  { name: 'Orange', hex: '#F97316' },
+  { name: 'Bleu', hex: '#3B82F6' },
+  { name: 'Vert', hex: '#10B981' },
+  { name: 'Rouge', hex: '#EF4444' },
+  { name: 'Violet', hex: '#8B5CF6' },
+  { name: 'Rose', hex: '#EC4899' },
+  { name: 'Jaune', hex: '#EAB308' },
+  { name: 'Turquoise', hex: '#06B6D4' },
+  { name: 'Gris', hex: '#6B7280' },
 ] as const
 
-export const DEFAULT_EVENT_COLOR = EVENT_COLORS[0]
+/** Couleur présélectionnée à la création d'une catégorie (bleu moderne, modifiable). */
+export const DEFAULT_CATEGORY_COLOR = '#3B82F6'
+
+/** Emoji attribué à toute catégorie qui n'en a pas explicitement reçu. */
+export const DEFAULT_CATEGORY_ICON = '📁'
 
 /** Options de rappel proposées (minutes avant le début) — envoi réel à venir. */
 export const REMINDER_OPTIONS = [5, 10, 15, 30, 60] as const
@@ -36,14 +47,23 @@ export interface PlanningEventQuest {
   difficulty: string
 }
 
+/** Catégorie de planning telle qu'embarquée dans un événement (couleur/icône incluses). */
+export interface PlanningEventCategory {
+  id: string
+  name: string
+  /** Couleur hex "#RRGGBB". */
+  color: string
+  /** Emoji, jamais vide (📁 par défaut). */
+  icon: string
+}
+
 export interface PlanningEventDto {
   id: string
   title: string
   description: string | null
   notes: string | null
-  /** Couleur hex "#RRGGBB". */
-  color: string
-  category: string
+  /** La couleur affichée est toujours celle de la catégorie — jamais stockée sur l'événement. */
+  category: PlanningEventCategory
   priority: string
   /** ISO datetime (UTC). */
   startAt: string
@@ -64,9 +84,24 @@ export interface PlanningEventActionResult {
   xp: XpResult | null
 }
 
+/** Catégorie de planning personnalisée d'un utilisateur (gestionnaire de catégories). */
+export interface PlanningCategoryDto {
+  id: string
+  name: string
+  color: string
+  /** Emoji, jamais vide (📁 par défaut). */
+  icon: string
+  sortOrder: number
+  isDefault: boolean
+  eventsCount: number
+}
+
 /** Temps planifié/effectué par catégorie (minutes). */
 export interface PlanningCategoryStat {
-  category: string
+  categoryId: string
+  name: string
+  color: string
+  icon: string
   plannedMinutes: number
   doneMinutes: number
 }

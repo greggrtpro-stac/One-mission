@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/cn'
 
 interface ModalProps {
@@ -22,7 +23,11 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
     return () => window.removeEventListener('keydown', handler)
   }, [open, onClose])
 
-  return (
+  // Portail vers <body> : un ancêtre avec transform/filter/backdrop-filter
+  // (ex. le header en backdrop-blur) deviendrait sinon le bloc conteneur du
+  // `position: fixed` et la modale s'afficherait dans sa bande au lieu du
+  // viewport.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
@@ -60,6 +65,7 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

@@ -20,6 +20,10 @@ npm-debug.log*
 .eslintcache
 coverage/
 
+# Claude Code (local uniquement — les skills du repo restent versionnés)
+.claude/worktrees/
+.claude/settings.local.json
+
 # OS / Editor
 .DS_Store
 Thumbs.db

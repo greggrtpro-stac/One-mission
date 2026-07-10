@@ -1,13 +1,14 @@
-import argon2 from 'argon2'
 import { OAuth2Client } from 'google-auth-library'
 import { env } from '../../config/env.js'
 import type { User } from '../../generated/prisma/client.js'
 import { signAccessToken } from '../../lib/jwt.js'
 import { sendPasswordResetEmail } from '../../lib/mailer.js'
+import { hashPassword, verifyPassword } from '../../lib/passwords.js'
 import { prisma } from '../../lib/prisma.js'
 import { generateToken, hashToken } from '../../lib/tokens.js'
 import { ApiError } from '../../middleware/error.js'
 import type { LoginInput, RegisterInput } from './auth.schemas.js'
+import { requestEmailVerification } from './verification.service.js'
 
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 jours
 const RESET_TTL_MS = 60 * 60 * 1000 // 1 heure
@@ -128,8 +129,8 @@ export async function register(input: RegisterInput): Promise<User> {
   if (emailTaken) throw new ApiError(409, 'Un compte existe déjà avec cet e-mail', 'EMAIL_TAKEN')
   if (usernameTaken) throw new ApiError(409, 'Ce pseudo est déjà pris', 'USERNAME_TAKEN')
 
-  const passwordHash = await argon2.hash(input.password)
-  return prisma.user.create({
+  const passwordHash = await hashPassword(input.password)
+  const user = await prisma.user.create({
     data: {
       email,
       passwordHash,
@@ -138,6 +139,11 @@ export async function register(input: RegisterInput): Promise<User> {
       lastName: input.lastName ?? null,
     },
   })
+
+  // Compte créé mais inutilisable tant que l'e-mail n'est pas confirmé
+  // (voir login ci-dessous) : l'envoi fait partie intégrante de l'inscription.
+  await requestEmailVerification(user.id)
+  return user
 }
 
 export async function login(input: LoginInput): Promise<User> {
@@ -149,8 +155,15 @@ export async function login(input: LoginInput): Promise<User> {
   if (!user.passwordHash) {
     throw new ApiError(401, 'Ce compte utilise la connexion Google', 'GOOGLE_ONLY')
   }
-  const ok = await argon2.verify(user.passwordHash, input.password)
+  const ok = await verifyPassword(user.passwordHash, input.password)
   if (!ok) throw invalid
+
+  // Vérifié APRÈS le mot de passe : seul le propriétaire du compte (qui vient
+  // de le prouver) apprend que l'e-mail n'est pas confirmé — aucune énumération
+  // possible pour qui n'a pas le bon mot de passe.
+  if (!user.emailVerifiedAt) {
+    throw new ApiError(403, 'Vérifie ton adresse e-mail avant de te connecter.', 'EMAIL_NOT_VERIFIED')
+  }
   return user
 }
 
@@ -193,16 +206,22 @@ export async function googleAuth(credential: string): Promise<User> {
   const byGoogleId = await prisma.user.findUnique({ where: { googleId: payload.sub } })
   if (byGoogleId) return byGoogleId
 
-  // Compte e-mail existant → on y rattache Google.
+  // Compte e-mail existant → on y rattache Google. Google ayant déjà prouvé la
+  // propriété de l'adresse, un compte pas encore vérifié le devient au passage.
   const byEmail = await prisma.user.findUnique({ where: { email } })
   if (byEmail) {
     return prisma.user.update({
       where: { id: byEmail.id },
-      data: { googleId: payload.sub, avatarUrl: byEmail.avatarUrl ?? payload.picture ?? null },
+      data: {
+        googleId: payload.sub,
+        avatarUrl: byEmail.avatarUrl ?? payload.picture ?? null,
+        emailVerifiedAt: byEmail.emailVerifiedAt ?? new Date(),
+      },
     })
   }
 
-  // Nouveau joueur.
+  // Nouveau joueur : Google a déjà vérifié l'adresse, aucun e-mail de
+  // confirmation à envoyer.
   const username = await uniqueUsernameFrom(payload.given_name ?? email.split('@')[0] ?? 'joueur')
   return prisma.user.create({
     data: {
@@ -212,6 +231,7 @@ export async function googleAuth(credential: string): Promise<User> {
       firstName: payload.given_name ?? null,
       lastName: payload.family_name ?? null,
       avatarUrl: payload.picture ?? null,
+      emailVerifiedAt: new Date(),
     },
   })
 }
@@ -224,13 +244,20 @@ export async function requestPasswordReset(email: string): Promise<void> {
   if (!user) return
 
   const token = generateToken()
-  await prisma.passwordResetToken.create({
-    data: {
-      userId: user.id,
-      tokenHash: hashToken(token),
-      expiresAt: new Date(Date.now() + RESET_TTL_MS),
-    },
-  })
+  await prisma.$transaction([
+    // Un seul lien valide à la fois : chaque demande invalide les précédentes,
+    // et les liens expirés sont purgés au passage.
+    prisma.passwordResetToken.deleteMany({
+      where: { OR: [{ userId: user.id }, { expiresAt: { lt: new Date() } }] },
+    }),
+    prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + RESET_TTL_MS),
+      },
+    }),
+  ])
 
   const resetUrl = `${env.CLIENT_URL}/reset-password?token=${token}`
   await sendPasswordResetEmail(user.email, resetUrl)
@@ -244,9 +271,10 @@ export async function resetPassword(rawToken: string, newPassword: string): Prom
     throw new ApiError(400, 'Lien invalide ou expiré, refais une demande', 'INVALID_RESET_TOKEN')
   }
 
-  const passwordHash = await argon2.hash(newPassword)
+  const passwordHash = await hashPassword(newPassword)
   await prisma.$transaction([
-    prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    // Usage unique : le lien utilisé (et tout autre lien du compte) est supprimé.
+    prisma.passwordResetToken.deleteMany({ where: { userId: record.userId } }),
     prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
     // Toutes les sessions existantes sont invalidées par sécurité.
     prisma.refreshToken.updateMany({

@@ -6,10 +6,10 @@ import {
 } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Plus, Swords } from 'lucide-react'
+import { ChevronDown, Plus, Swords, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { mainQuestApi, questsApi } from '@/api/quests'
-import { Button, Select, Spinner } from '@/components/ui'
+import { Button, ConfirmDialog, Select, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { relativeDay } from '@/lib/dates'
 import { applyXpResult } from '@/stores/xpFx'
@@ -38,11 +38,13 @@ export function QuestsPage() {
     },
   })
 
+  const [toDelete, setToDelete] = useState<QuestDto | null>(null)
   const remove = useMutation({
     mutationFn: (quest: QuestDto) => questsApi.remove(quest.id),
     onSuccess: (result) => {
       applyXpResult(result.xp)
       void queryClient.invalidateQueries({ queryKey: ['quests'] })
+      setToDelete(null)
     },
   })
 
@@ -91,9 +93,7 @@ export function QuestsPage() {
   }
 
   function handleDelete(quest: QuestDto) {
-    if (window.confirm(`Supprimer la quête « ${quest.title} » ?`)) {
-      remove.mutate(quest)
-    }
+    setToDelete(quest)
   }
 
   return (
@@ -210,6 +210,23 @@ export function QuestsPage() {
       )}
 
       <QuestFormModal open={formOpen} onClose={() => setFormOpen(false)} quest={editing} />
+
+      <ConfirmDialog
+        open={toDelete !== null}
+        onClose={() => setToDelete(null)}
+        onConfirm={() => toDelete && remove.mutate(toDelete)}
+        icon={Trash2}
+        tone="danger"
+        title="Supprimer cette quête ?"
+        description={
+          <>
+            <p>Cette action supprimera définitivement cette quête.</p>
+            <p>Cette opération est irréversible.</p>
+          </>
+        }
+        confirmLabel="Supprimer"
+        loading={remove.isPending}
+      />
     </div>
   )
 }

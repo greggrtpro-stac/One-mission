@@ -13,14 +13,14 @@
   --muted: #5d5d66;
   --faint: #9b9ba4;
 
-  --accent: #f56200;
-  --accent-hover: #ff7a1f;
-  --accent-soft: rgba(245, 98, 0, 0.11);
-  --accent-glow: rgba(245, 98, 0, 0.28);
+  --accent: #7c3aed;
+  --accent-hover: #8b5cf6;
+  --accent-soft: rgba(124, 58, 237, 0.11);
+  --accent-glow: rgba(124, 58, 237, 0.28);
   --on-accent: #ffffff;
 
   /* Marques de graphiques (validées contre la surface claire) */
-  --chart-1: #f56200;
+  --chart-1: #7c3aed;
   --chart-muted: #c4c4bd;
 
   --success: #189d47;

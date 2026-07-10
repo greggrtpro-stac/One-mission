@@ -1,6 +1,8 @@
 import {
+  DEFAULT_COMMUNICATION_PREFS,
   DEFAULT_NOTIFICATIONS,
   LANGUAGES,
+  type CommunicationPrefs,
   type Language,
   type NotificationPrefs,
   type PublicUser,
@@ -26,6 +28,13 @@ export function toPublicUser(user: User): PublicUser {
       ...((user.notifications ?? {}) as Partial<NotificationPrefs>),
     },
     showOnLeaderboard: user.showOnLeaderboard,
+    newsletterOptIn: user.newsletterOptIn,
+    communicationPrefs: {
+      ...DEFAULT_COMMUNICATION_PREFS,
+      ...((user.communicationPrefs ?? {}) as Partial<CommunicationPrefs>),
+      // Jamais désactivables, même si une valeur invalide traînait en base.
+      accountSecurity: true,
+    },
     twoFactorEnabled: user.twoFactorEnabled,
     level: user.level,
     totalXp: user.totalXp,

@@ -1,9 +1,5 @@
 import { z } from 'zod'
-import { difficultyEnum, priorityEnum, questCategoryEnum } from '../quests/quests.schemas.js'
-
-export const colorSchema = z
-  .string()
-  .regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur attendue au format #RRGGBB')
+import { difficultyEnum, priorityEnum } from '../quests/quests.schemas.js'
 
 const dateSchema = z
   .string()
@@ -21,8 +17,7 @@ export const createEventSchema = z
     title: z.string().min(1, 'Titre requis').max(120),
     description: z.string().max(2000).nullable().optional(),
     notes: z.string().max(4000).nullable().optional(),
-    color: colorSchema.default('#6366F1'),
-    category: questCategoryEnum.default('AUTRE'),
+    categoryId: z.string().min(1, 'Catégorie requise'),
     priority: priorityEnum.default('MEDIUM'),
     startAt: z.iso.datetime(),
     endAt: z.iso.datetime(),
@@ -38,8 +33,7 @@ export const updateEventSchema = z.object({
   title: z.string().min(1).max(120).optional(),
   description: z.string().max(2000).nullable().optional(),
   notes: z.string().max(4000).nullable().optional(),
-  color: colorSchema.optional(),
-  category: questCategoryEnum.optional(),
+  categoryId: z.string().min(1).optional(),
   priority: priorityEnum.optional(),
   startAt: z.iso.datetime().optional(),
   endAt: z.iso.datetime().optional(),

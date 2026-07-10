@@ -86,5 +86,9 @@ export const http = {
     api<T>(path, { method: 'PATCH', body: body === undefined ? undefined : JSON.stringify(body) }),
   put: <T>(path: string, body?: unknown) =>
     api<T>(path, { method: 'PUT', body: body === undefined ? undefined : JSON.stringify(body) }),
-  delete: <T>(path: string) => api<T>(path, { method: 'DELETE' }),
+  delete: <T>(path: string, body?: unknown) =>
+    api<T>(path, {
+      method: 'DELETE',
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
 }

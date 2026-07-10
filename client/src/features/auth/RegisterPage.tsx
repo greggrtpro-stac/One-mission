@@ -1,28 +1,108 @@
+import { isPasswordAcceptable, PASSWORD_MIN_LENGTH } from '@one-mission/shared'
 import { useMutation } from '@tanstack/react-query'
+import { MailCheck } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { register } from '@/api/auth'
-import { Button, Input } from '@/components/ui'
+import { Button, Input, PasswordInput } from '@/components/ui'
 import { AuthLayout } from './AuthLayout'
 import { GoogleButton } from './GoogleButton'
+import { PasswordChecklist } from './PasswordChecklist'
 import { PrivacyNotice } from './PrivacyNotice'
+import { ResendVerificationForm } from './ResendVerificationForm'
+import { TurnstileWidget } from './TurnstileWidget'
+
+/** Écran affiché juste après l'inscription : le compte existe mais reste inactif. */
+function EmailSentScreen({ email, onEditEmail }: { email: string; onEditEmail: () => void }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface-2 px-5 py-7 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-accent-soft text-accent">
+          <MailCheck size={22} />
+        </span>
+        <div>
+          <p className="font-semibold">Ton compte a été créé avec succès.</p>
+          <p className="mt-1.5 text-sm text-muted">
+            Un e-mail de confirmation vient de t'être envoyé à <strong className="text-ink">{email}</strong>.
+          </p>
+          <p className="mt-1.5 text-sm text-muted">
+            Vérifie ta boîte de réception avant de te connecter.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-medium">Rien reçu ?</p>
+        <ResendVerificationForm initialEmail={email} submitLabel="Renvoyer l'e-mail" />
+      </div>
+
+      <button
+        type="button"
+        onClick={onEditEmail}
+        className="text-center text-sm text-muted hover:text-accent"
+      >
+        Modifier mon adresse e-mail
+      </button>
+
+      <p className="text-center text-sm text-muted">
+        <Link to="/login" className="font-medium text-accent hover:text-accent-hover">
+          ← Retour à la connexion
+        </Link>
+      </p>
+    </div>
+  )
+}
 
 export function RegisterPage() {
-  const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
   const [googleError, setGoogleError] = useState<string | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  /** Adresse confirmée par le serveur : bascule vers l'écran « e-mail envoyé ». */
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: () => register({ username, email, password }),
-    onSuccess: () => navigate('/app'),
+    mutationFn: () =>
+      register({
+        username: username.trim(),
+        email: email.trim(),
+        password,
+        turnstileToken: turnstileToken ?? '',
+      }),
+    onSuccess: (data) => setRegisteredEmail(data.email),
   })
+
+  // Les deux mots de passe doivent correspondre — signalé dès la saisie.
+  const mismatch = confirm.length > 0 && password !== confirm
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    setLocalError(null)
+    if (!isPasswordAcceptable(password)) {
+      setLocalError('Ton mot de passe ne remplit pas encore tous les critères ci-dessous.')
+      return
+    }
+    if (password !== confirm) {
+      setLocalError('Les deux mots de passe ne correspondent pas.')
+      return
+    }
+    if (turnstileToken === null) {
+      setLocalError('Vérification anti-robot en cours, réessaie dans un instant.')
+      return
+    }
     mutation.mutate()
+  }
+
+  if (registeredEmail) {
+    return (
+      <AuthLayout title="Vérifie ta boîte mail" subtitle="Une dernière étape avant de commencer.">
+        <EmailSentScreen email={registeredEmail} onEditEmail={() => setRegisteredEmail(null)} />
+      </AuthLayout>
+    )
   }
 
   return (
@@ -58,15 +138,26 @@ export function RegisterPage() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="toi@exemple.fr"
         />
-        <Input
-          label="Mot de passe"
-          type="password"
+        <div className="flex flex-col gap-2">
+          <PasswordInput
+            label="Mot de passe"
+            autoComplete="new-password"
+            required
+            minLength={PASSWORD_MIN_LENGTH}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={`${PASSWORD_MIN_LENGTH} caractères minimum`}
+          />
+          <PasswordChecklist password={password} />
+        </div>
+        <PasswordInput
+          label="Confirmer le mot de passe"
           autoComplete="new-password"
           required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="8 caractères minimum"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          placeholder="••••••••••••"
+          error={mismatch ? 'Les deux mots de passe ne correspondent pas' : undefined}
         />
 
         <label className="flex items-start gap-2.5 text-sm text-muted">
@@ -90,13 +181,23 @@ export function RegisterPage() {
           </span>
         </label>
 
-        {(mutation.error || googleError) && (
+        <TurnstileWidget onVerify={setTurnstileToken} />
+
+        {(localError || mutation.error || googleError) && (
           <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
-            {googleError ?? (mutation.error instanceof Error ? mutation.error.message : 'Erreur')}
+            {localError ??
+              googleError ??
+              (mutation.error instanceof Error ? mutation.error.message : 'Erreur')}
           </p>
         )}
 
-        <Button type="submit" size="lg" loading={mutation.isPending} className="w-full">
+        <Button
+          type="submit"
+          size="lg"
+          loading={mutation.isPending}
+          disabled={turnstileToken === null}
+          className="w-full"
+        >
           Créer mon compte
         </Button>
 

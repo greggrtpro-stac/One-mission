@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Menu,
   Moon,
+  Repeat,
   Rocket,
   Settings,
   ShieldCheck,
@@ -26,6 +27,7 @@ import { Avatar, Logo } from '@/components/ui'
 import { DeepWorkTicker } from '@/features/deepwork/DeepWorkTicker'
 import { BugReportButton } from '@/features/feedback/BugReportButton'
 import { cn } from '@/lib/cn'
+import { chooseTheme } from '@/lib/themePreference'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { SidebarProfileCard } from './SidebarProfileCard'
@@ -35,6 +37,7 @@ const NAV = [
   { to: '/app', label: 'Tableau de bord', icon: LayoutDashboard, end: true },
   { to: '/app/quests', label: 'Quêtes', icon: Swords },
   { to: '/app/weekly', label: 'Hebdomadaires', icon: CalendarCheck },
+  { to: '/app/routine', label: 'Routine', icon: Repeat },
   { to: '/app/planning', label: 'Planning', icon: CalendarDays },
   { to: '/app/deepwork', label: 'DeepWork', icon: Timer },
   { to: '/app/addictions', label: 'Addictions', icon: ShieldCheck },
@@ -115,7 +118,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 /** Coquille de l'application : sidebar fixe (desktop), tiroir (mobile), topbar. */
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { theme, toggle } = useThemeStore()
+  const theme = useThemeStore((s) => s.theme)
   const user = useAuthStore((s) => s.user)
 
   return (
@@ -174,7 +177,7 @@ export function AppShell() {
           <XpMeter />
 
           <button
-            onClick={toggle}
+            onClick={() => chooseTheme(theme === 'dark' ? 'light' : 'dark')}
             className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
             title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
             aria-label={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}

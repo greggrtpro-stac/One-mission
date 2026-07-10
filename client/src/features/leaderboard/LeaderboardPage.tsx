@@ -1,6 +1,6 @@
 import type { LeaderboardEntry } from '@one-mission/shared'
 import { useQuery } from '@tanstack/react-query'
-import { Crown, EyeOff, Flame, Trophy } from 'lucide-react'
+import { ChevronRight, Crown, EyeOff, Flame, Trophy } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { leaderboardApi } from '@/api/stats'
 import { Avatar, Badge, Card, Spinner } from '@/components/ui'
@@ -16,37 +16,46 @@ const PODIUM_STYLES = [
 function Row({ entry }: { entry: LeaderboardEntry }) {
   const podium = entry.rank <= 3
   return (
-    <li
-      className={cn(
-        'flex items-center gap-3 rounded-2xl border px-4 py-3',
-        entry.isMe
-          ? 'border-accent bg-accent-soft'
-          : 'border-line bg-surface',
-      )}
-    >
-      <span className="flex w-8 shrink-0 items-center justify-center">
-        {podium ? (
-          <Crown size={20} className={PODIUM_STYLES[entry.rank - 1]} fill="currentColor" />
-        ) : (
-          <span className="text-sm font-bold text-muted tabular-nums">{entry.rank}</span>
+    <li>
+      {/* Toute la carte ouvre le profil public du joueur. */}
+      <Link
+        to={`/app/leaderboard/${entry.userId}`}
+        title={`Voir le profil public de ${entry.username}`}
+        className={cn(
+          'group flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors',
+          entry.isMe
+            ? 'border-accent bg-accent-soft hover:bg-accent-soft/80'
+            : 'border-line bg-surface hover:border-accent/50 hover:bg-surface-2',
         )}
-      </span>
-      <Avatar src={entry.avatarUrl} name={entry.username} size={36} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">
-          {entry.username}
-          {entry.isMe && <span className="ml-1.5 text-xs font-medium text-accent">(toi)</span>}
+      >
+        <span className="flex w-8 shrink-0 items-center justify-center">
+          {podium ? (
+            <Crown size={20} className={PODIUM_STYLES[entry.rank - 1]} fill="currentColor" />
+          ) : (
+            <span className="text-sm font-bold text-muted tabular-nums">{entry.rank}</span>
+          )}
+        </span>
+        <Avatar src={entry.avatarUrl} name={entry.username} size={36} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">
+            {entry.username}
+            {entry.isMe && <span className="ml-1.5 text-xs font-medium text-accent">(toi)</span>}
+          </p>
+          <p className="text-xs text-muted">Niveau {entry.level}</p>
+        </div>
+        {entry.currentStreak > 0 && (
+          <Badge variant="warning" title="Série d'activité">
+            <Flame size={11} /> {entry.currentStreak} j
+          </Badge>
+        )}
+        <p className="w-20 shrink-0 text-right text-sm font-bold text-accent tabular-nums">
+          {entry.totalXp.toLocaleString('fr-FR')} XP
         </p>
-        <p className="text-xs text-muted">Niveau {entry.level}</p>
-      </div>
-      {entry.currentStreak > 0 && (
-        <Badge variant="warning" title="Série d'activité">
-          <Flame size={11} /> {entry.currentStreak} j
-        </Badge>
-      )}
-      <p className="w-20 shrink-0 text-right text-sm font-bold text-accent tabular-nums">
-        {entry.totalXp.toLocaleString('fr-FR')} XP
-      </p>
+        <ChevronRight
+          size={16}
+          className="shrink-0 text-faint transition-colors group-hover:text-accent"
+        />
+      </Link>
     </li>
   )
 }

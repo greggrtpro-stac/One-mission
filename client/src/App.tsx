@@ -69,6 +69,12 @@ const router = createBrowserRouter([
               Component: (await import('@/features/auth/ResetPasswordPage')).ResetPasswordPage,
             }),
           },
+          {
+            path: '/verify-email',
+            lazy: async () => ({
+              Component: (await import('@/features/auth/VerifyEmailPage')).VerifyEmailPage,
+            }),
+          },
         ],
       },
       {
@@ -94,6 +100,12 @@ const router = createBrowserRouter([
                 path: 'weekly',
                 lazy: async () => ({
                   Component: (await import('@/features/weekly/WeeklyPage')).WeeklyPage,
+                }),
+              },
+              {
+                path: 'routine',
+                lazy: async () => ({
+                  Component: (await import('@/features/routines/RoutinesPage')).RoutinesPage,
                 }),
               },
               {
@@ -127,6 +139,14 @@ const router = createBrowserRouter([
                     .LeaderboardPage,
                 }),
               },
+              // Profil public d'un joueur, ouvert en cliquant sur sa carte du classement.
+              {
+                path: 'leaderboard/:userId',
+                lazy: async () => ({
+                  Component: (await import('@/features/leaderboard/PublicProfilePage'))
+                    .PublicProfilePage,
+                }),
+              },
               // Les statistiques vivent désormais sur le Profil.
               { path: 'stats', element: <Navigate to="/app/profile" replace /> },
               {
@@ -139,6 +159,19 @@ const router = createBrowserRouter([
                 path: 'level-up',
                 lazy: async () => ({
                   Component: (await import('@/features/subscription/LevelUpPage')).LevelUpPage,
+                }),
+              },
+              {
+                path: 'checkout',
+                lazy: async () => ({
+                  Component: (await import('@/features/subscription/CheckoutPage')).CheckoutPage,
+                }),
+              },
+              {
+                path: 'subscription',
+                lazy: async () => ({
+                  Component: (await import('@/features/subscription/SubscriptionPage'))
+                    .SubscriptionPage,
                 }),
               },
               {

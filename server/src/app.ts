@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import compression from 'compression'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express from 'express'
@@ -7,6 +8,7 @@ import helmet from 'helmet'
 import { env, isProd } from './config/env.js'
 import { log } from './lib/log.js'
 import { errorHandler, notFoundHandler } from './middleware/error.js'
+import { stripeWebhookHandler } from './modules/subscriptions/stripe.webhook.js'
 import { apiRouter } from './routes.js'
 
 /**
@@ -37,9 +39,20 @@ export function createApp() {
         directives: {
           defaultSrc: ["'self'"],
           // accounts.google.com : bouton « Continuer avec Google » (chargé au clic).
-          scriptSrc: ["'self'", FILE_GUARD_SCRIPT_HASH, 'https://accounts.google.com'],
-          connectSrc: ["'self'", 'https://accounts.google.com'],
-          frameSrc: ['https://accounts.google.com'],
+          // challenges.cloudflare.com : widget anti-robot Turnstile (inscription,
+          // connexion, mot de passe oublié, renvoi de confirmation).
+          scriptSrc: [
+            "'self'",
+            FILE_GUARD_SCRIPT_HASH,
+            'https://accounts.google.com',
+            'https://challenges.cloudflare.com',
+          ],
+          connectSrc: [
+            "'self'",
+            'https://accounts.google.com',
+            'https://challenges.cloudflare.com',
+          ],
+          frameSrc: ['https://accounts.google.com', 'https://challenges.cloudflare.com'],
           // data: pour les avatars importés ; googleusercontent pour les photos Google.
           imgSrc: ["'self'", 'data:', 'https://*.googleusercontent.com'],
           // 'unsafe-inline' : styles inline posés par framer-motion et le bouton Google.
@@ -58,6 +71,15 @@ export function createApp() {
       credentials: true,
     }),
   )
+  app.use(compression())
+  // Webhook Stripe AVANT express.json : la signature se vérifie sur le corps
+  // brut, que le parseur JSON détruirait.
+  app.post(
+    '/api/subscriptions/webhook',
+    express.raw({ type: 'application/json' }),
+    stripeWebhookHandler,
+  )
+
   app.use(express.json({ limit: '2mb' }))
   app.use(cookieParser())
 

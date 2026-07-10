@@ -1,6 +1,6 @@
 import { xpForLevel, type PublicUser } from '@one-mission/shared'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronsUpDown, LogOut, Settings, Star, User } from 'lucide-react'
+import { ChevronsUpDown, CreditCard, LogOut, Settings, Star, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, ProgressBar } from '@/components/ui'
@@ -74,6 +74,11 @@ export function SidebarProfileCard({ user, onNavigate }: SidebarProfileCardProps
             className="absolute inset-x-3 bottom-full z-50 mb-1.5 rounded-2xl border border-line bg-surface p-1.5 shadow-2xl"
           >
             <MenuItem icon={User} label="Profil" onClick={() => go('/app/profile')} />
+            <MenuItem
+              icon={CreditCard}
+              label="Mon abonnement"
+              onClick={() => go('/app/subscription')}
+            />
             <MenuItem icon={Settings} label="Paramètres" onClick={() => go('/app/settings')} />
             <div className="my-1 h-px bg-line" />
             <MenuItem icon={LogOut} label="Déconnexion" danger onClick={handleLogout} />

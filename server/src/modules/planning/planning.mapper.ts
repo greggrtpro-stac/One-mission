@@ -1,7 +1,10 @@
 import type { PlanningEventDto, PlanningEventStatus } from '@one-mission/shared'
-import type { PlanningEvent, Quest } from '../../generated/prisma/client.js'
+import type { PlanningCategory, PlanningEvent, Quest } from '../../generated/prisma/client.js'
 
-export type PlanningEventWithQuest = PlanningEvent & { quest: Quest | null }
+export type PlanningEventWithQuest = PlanningEvent & {
+  quest: Quest | null
+  planningCategory: PlanningCategory
+}
 
 export function toPlanningEventDto(event: PlanningEventWithQuest): PlanningEventDto {
   return {
@@ -9,8 +12,12 @@ export function toPlanningEventDto(event: PlanningEventWithQuest): PlanningEvent
     title: event.title,
     description: event.description,
     notes: event.notes,
-    color: event.color,
-    category: event.category,
+    category: {
+      id: event.planningCategory.id,
+      name: event.planningCategory.name,
+      color: event.planningCategory.color,
+      icon: event.planningCategory.icon,
+    },
     priority: event.priority,
     startAt: event.startAt.toISOString(),
     endAt: event.endAt.toISOString(),
