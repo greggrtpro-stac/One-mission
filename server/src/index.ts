@@ -1,3 +1,5 @@
+// Doit rester le premier import : charge .env avant toute lecture de config.
+import './loadEnv.js'
 import { createApp } from './app.js'
 import { env } from './config/env.js'
 
