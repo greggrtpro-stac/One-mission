@@ -39,7 +39,7 @@ export function LevelUpOverlay() {
           onClick={clear}
         >
           <div className="relative flex flex-col items-center px-6 text-center" onClick={(e) => e.stopPropagation()}>
-            {/* Particules orange */}
+            {/* Particules violettes */}
             {particles.map((p, i) => (
               <motion.span
                 key={`${levelUp}-${i}`}

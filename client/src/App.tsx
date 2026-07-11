@@ -4,7 +4,7 @@ import { bootstrapSession } from '@/api/auth'
 import { BetaBanner } from '@/components/BetaBanner'
 import { CookieBanner } from '@/components/CookieBanner'
 import { AppShell } from '@/components/layout/AppShell'
-import { GuestOnly, RequireAuth } from '@/components/layout/guards'
+import { AuthPages, RequireAuth } from '@/components/layout/guards'
 import { RouteErrorPage } from '@/components/layout/RouteErrorPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
@@ -53,7 +53,7 @@ const router = createBrowserRouter([
         }),
       },
       {
-        element: <GuestOnly />,
+        element: <AuthPages />,
         children: [
           { path: '/login', element: <LoginPage /> },
           { path: '/register', element: <RegisterPage /> },
@@ -137,6 +137,12 @@ const router = createBrowserRouter([
                 lazy: async () => ({
                   Component: (await import('@/features/leaderboard/LeaderboardPage'))
                     .LeaderboardPage,
+                }),
+              },
+              {
+                path: 'friends',
+                lazy: async () => ({
+                  Component: (await import('@/features/friends/FriendsPage')).FriendsPage,
                 }),
               },
               // Profil public d'un joueur, ouvert en cliquant sur sa carte du classement.

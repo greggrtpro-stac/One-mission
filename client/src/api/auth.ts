@@ -4,8 +4,18 @@ import type {
   TurnstileSiteKeyResponse,
   VerifyEmailResponse,
 } from '@one-mission/shared'
+import { queryClient } from '@/lib/queryClient'
 import { useAuthStore } from '@/stores/auth'
 import { http, refreshSession } from './http'
+
+/**
+ * Les clés de requêtes ne sont pas liées à un utilisateur : au changement
+ * d'identité (connexion à un autre compte, déconnexion), le cache est purgé
+ * pour ne jamais montrer les données du compte précédent.
+ */
+function clearCacheIfSwitchingFrom(previousUserId: string | undefined, nextUserId: string) {
+  if (previousUserId && previousUserId !== nextUserId) queryClient.clear()
+}
 
 export interface RegisterPayload {
   email: string
@@ -26,13 +36,17 @@ export async function login(
   password: string,
   turnstileToken: string,
 ): Promise<AuthResponse> {
+  const previousUserId = useAuthStore.getState().user?.id
   const data = await http.post<AuthResponse>('/api/auth/login', { email, password, turnstileToken })
+  clearCacheIfSwitchingFrom(previousUserId, data.user.id)
   useAuthStore.getState().setSession(data.user, data.accessToken)
   return data
 }
 
 export async function loginWithGoogle(credential: string): Promise<AuthResponse> {
+  const previousUserId = useAuthStore.getState().user?.id
   const data = await http.post<AuthResponse>('/api/auth/google', { credential })
+  clearCacheIfSwitchingFrom(previousUserId, data.user.id)
   useAuthStore.getState().setSession(data.user, data.accessToken)
   return data
 }
@@ -42,6 +56,8 @@ export async function logout(): Promise<void> {
     await http.post('/api/auth/logout')
   } finally {
     useAuthStore.getState().clearSession()
+    // Rien du compte quitté ne doit survivre pour le prochain utilisateur du navigateur.
+    queryClient.clear()
   }
 }
 

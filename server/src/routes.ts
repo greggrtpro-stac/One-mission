@@ -4,7 +4,9 @@ import { authRouter } from './modules/auth/auth.routes.js'
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js'
 import { deepworkRouter } from './modules/deepwork/deepwork.routes.js'
 import { feedbackRouter } from './modules/feedback/feedback.routes.js'
+import { friendsRouter } from './modules/friends/friends.routes.js'
 import { journalRouter } from './modules/journal/journal.routes.js'
+import { notificationsRouter } from './modules/notifications/notifications.routes.js'
 import { leaderboardRouter } from './modules/leaderboard/leaderboard.routes.js'
 import { mainQuestRouter } from './modules/main-quest/main-quest.routes.js'
 import { planningCategoriesRouter } from './modules/planning/planning-categories.routes.js'
@@ -37,5 +39,7 @@ apiRouter.use('/addictions', addictionsRouter)
 apiRouter.use('/journal', journalRouter)
 apiRouter.use('/feedback', feedbackRouter)
 apiRouter.use('/leaderboard', leaderboardRouter)
+apiRouter.use('/friends', friendsRouter)
+apiRouter.use('/notifications', notificationsRouter)
 apiRouter.use('/stats', statsRouter)
 apiRouter.use('/subscriptions', subscriptionsRouter)

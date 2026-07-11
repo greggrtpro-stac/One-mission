@@ -1,5 +1,6 @@
 import type {
   CommunicationPrefs,
+  FriendPrefs,
   Language,
   NotificationPrefs,
   PublicUser,
@@ -19,6 +20,7 @@ export interface ProfilePayload {
   language?: Language
   notifications?: NotificationPrefs
   showOnLeaderboard?: boolean
+  friendPrefs?: FriendPrefs
   newsletterOptIn?: boolean
   communicationPrefs?: CommunicationPrefs
 }

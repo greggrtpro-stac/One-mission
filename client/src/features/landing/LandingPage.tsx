@@ -64,7 +64,7 @@ export function LandingPage() {
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-bg text-ink">
-      {/* Halo orange d'arrière-plan */}
+      {/* Halo violet d’arrière-plan */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-[-320px] mx-auto h-[640px] w-[880px] rounded-full opacity-25 blur-[120px]"

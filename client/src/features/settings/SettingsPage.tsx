@@ -1,7 +1,9 @@
 import {
+  DEFAULT_FRIEND_PREFS,
   DEFAULT_NOTIFICATIONS,
   isPasswordAcceptable,
   PASSWORD_MIN_LENGTH,
+  type FriendPrefs,
   type Language,
   type NotificationPrefs,
   type SessionDevice,
@@ -282,6 +284,15 @@ function PreferencesCards() {
     save.mutate({ notifications: { ...notifications, [key]: value } })
   }
 
+  const friendPrefs: FriendPrefs = { ...DEFAULT_FRIEND_PREFS, ...user.friendPrefs }
+  function setFriendPref(key: keyof FriendPrefs, value: boolean) {
+    save.mutate(
+      { friendPrefs: { ...friendPrefs, [key]: value } },
+      // L'onglet Amis doit refléter immédiatement le changement (recherche, présence).
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['friends'] }) },
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-6">
@@ -373,6 +384,40 @@ function PreferencesCards() {
                 { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leaderboard'] }) },
               )
             }
+          />
+        </div>
+
+        {/* Système d'amis — respecté partout côté serveur (recherche, demandes, présence). */}
+        <div className="mt-4 space-y-4 border-t border-line pt-4">
+          <Toggle
+            label="Autoriser les demandes d'amis"
+            description="Les autres joueurs peuvent t'envoyer une demande d'ami."
+            checked={friendPrefs.allowFriendRequests}
+            onChange={(v) => setFriendPref('allowFriendRequests', v)}
+          />
+          <Toggle
+            label="Autoriser la recherche par pseudo"
+            description="Ton pseudo apparaît dans la recherche de joueurs de l'onglet Amis."
+            checked={friendPrefs.allowUsernameSearch}
+            onChange={(v) => setFriendPref('allowUsernameSearch', v)}
+          />
+          <Toggle
+            label="Afficher mon statut en ligne"
+            description="Tes amis voient si tu es en ligne en ce moment."
+            checked={friendPrefs.showOnlineStatus}
+            onChange={(v) => setFriendPref('showOnlineStatus', v)}
+          />
+          <Toggle
+            label="Afficher ma dernière connexion"
+            description="Tes amis voient quand tu t'es connecté pour la dernière fois."
+            checked={friendPrefs.showLastSeen}
+            onChange={(v) => setFriendPref('showLastSeen', v)}
+          />
+          <Toggle
+            label="Afficher mes statistiques d'addictions sur mon profil public"
+            description="Nombre d'addictions suivies et record sans rechute — jamais leurs noms."
+            checked={friendPrefs.showAddictionsPublicly}
+            onChange={(v) => setFriendPref('showAddictionsPublicly', v)}
           />
         </div>
 

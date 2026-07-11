@@ -1,4 +1,5 @@
 export * from './api.js'
+export * from './friends.js'
 export * from './gamification.js'
 export * from './password.js'
 export * from './planning.js'

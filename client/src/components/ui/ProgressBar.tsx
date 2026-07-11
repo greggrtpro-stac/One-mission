@@ -11,7 +11,7 @@ export interface ProgressBarProps {
 
 const heights = { sm: 'h-1.5', md: 'h-2.5', lg: 'h-3.5' }
 
-/** Barre de progression orange animée (XP, quêtes, objectifs). */
+/** Barre de progression violette animée (XP, quêtes, objectifs). */
 export function ProgressBar({ value, size = 'md', className }: ProgressBarProps) {
   const clamped = Math.min(100, Math.max(0, value))
   return (

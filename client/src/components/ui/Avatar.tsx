@@ -7,7 +7,7 @@ interface AvatarProps {
   className?: string
 }
 
-/** Photo de profil, ou initiales sur fond orange doux à défaut. */
+/** Photo de profil, ou initiales sur fond violet doux à défaut. */
 export function Avatar({ src, name, size = 36, className }: AvatarProps) {
   const initials = name
     .split(/[\s_.-]+/)

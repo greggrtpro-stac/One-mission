@@ -5,9 +5,11 @@ import type {
 } from '@one-mission/shared'
 import type { Request, Response } from 'express'
 import { Router } from 'express'
+import { DEFAULT_FRIEND_PREFS, type FriendPrefs } from '@one-mission/shared'
 import { prisma } from '../../lib/prisma.js'
 import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
+import { areFriends } from '../friends/friends.service.js'
 import { computeProfileStats } from '../stats/stats.service.js'
 
 const TOP_SIZE = 50
@@ -89,6 +91,7 @@ leaderboardRouter.get('/', async (req: Request, res: Response) => {
  * d'addictions ni de contenu de journal.
  */
 leaderboardRouter.get('/:userId', async (req: Request, res: Response) => {
+  const meId = getUserId(req)
   const target = await prisma.user.findUnique({
     where: { id: req.params.userId as string },
     select: {
@@ -102,11 +105,24 @@ leaderboardRouter.get('/:userId', async (req: Request, res: Response) => {
       longestStreak: true,
       createdAt: true,
       showOnLeaderboard: true,
+      friendPrefs: true,
     },
   })
-  if (!target?.showOnLeaderboard) throw new ApiError(404, 'Profil introuvable')
+  // Un profil masqué du classement reste visible par ses AMIS (l'amitié a été
+  // acceptée explicitement) — pour tout autre joueur, même 404 qu'un profil
+  // inexistant afin de ne pas révéler son existence.
+  const visible =
+    target && (target.showOnLeaderboard || (await areFriends(meId, target.id)))
+  if (!target || !visible) throw new ApiError(404, 'Profil introuvable')
 
   const stats = await computeProfileStats(target)
+
+  // Statistiques d'addictions : uniquement si le joueur les a rendues publiques.
+  const targetPrefs: FriendPrefs = {
+    ...DEFAULT_FRIEND_PREFS,
+    ...((target.friendPrefs ?? {}) as Partial<FriendPrefs>),
+  }
+  const showAddictions = targetPrefs.showAddictionsPublicly
 
   const response: PublicProfileResponse = {
     user: {
@@ -132,8 +148,8 @@ leaderboardRouter.get('/:userId', async (req: Request, res: Response) => {
       focusAvgSecondsPerDay: stats.focusAvgSecondsPerDay,
       deepworkSessions: stats.deepworkSessions,
       journalEntries: stats.journalEntries,
-      addictionsCount: stats.addictionsCount,
-      longestCleanDays: stats.longestCleanDays,
+      addictionsCount: showAddictions ? stats.addictionsCount : null,
+      longestCleanDays: showAddictions ? stats.longestCleanDays : null,
       days: stats.days,
       weeks: stats.weeks,
     },

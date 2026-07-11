@@ -1,8 +1,10 @@
 import {
   DEFAULT_COMMUNICATION_PREFS,
+  DEFAULT_FRIEND_PREFS,
   DEFAULT_NOTIFICATIONS,
   LANGUAGES,
   type CommunicationPrefs,
+  type FriendPrefs,
   type Language,
   type NotificationPrefs,
   type PublicUser,
@@ -28,6 +30,10 @@ export function toPublicUser(user: User): PublicUser {
       ...((user.notifications ?? {}) as Partial<NotificationPrefs>),
     },
     showOnLeaderboard: user.showOnLeaderboard,
+    friendPrefs: {
+      ...DEFAULT_FRIEND_PREFS,
+      ...((user.friendPrefs ?? {}) as Partial<FriendPrefs>),
+    },
     newsletterOptIn: user.newsletterOptIn,
     communicationPrefs: {
       ...DEFAULT_COMMUNICATION_PREFS,

@@ -72,6 +72,8 @@ export interface PublicUser {
   language: Language
   notifications: NotificationPrefs
   showOnLeaderboard: boolean
+  /** Confidentialité du système d'amis (voir shared/friends.ts). */
+  friendPrefs: import('./friends.js').FriendPrefs
   /** Newsletter One Mission (nouveautés, conseils, annonces) — distincte des préférences ci-dessous. */
   newsletterOptIn: boolean
   communicationPrefs: CommunicationPrefs
@@ -447,7 +449,14 @@ export interface PublicPlayer {
  * Statistiques publiques : sous-ensemble de ProfileStats sans le contenu
  * privé (noms des addictions, nombre de rechutes, répartition par catégorie).
  */
-export type PublicProfileStats = Omit<ProfileStats, 'addictions' | 'categories' | 'relapsesTotal'>
+export type PublicProfileStats = Omit<
+  ProfileStats,
+  'addictions' | 'categories' | 'relapsesTotal' | 'addictionsCount' | 'longestCleanDays'
+> & {
+  /** null si le joueur a masqué ses statistiques d'addictions (friendPrefs.showAddictionsPublicly). */
+  addictionsCount: number | null
+  longestCleanDays: number | null
+}
 
 /** Réponse de GET /api/leaderboard/:userId — le profil public d'un joueur. */
 export interface PublicProfileResponse {

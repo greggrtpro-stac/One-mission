@@ -6,7 +6,7 @@ import { LegalField, LegalLayout, LegalSection, LegalValue } from './LegalLayout
  * Politique de confidentialité (RGPD).
  * Rédigée d'après le fonctionnement réel de l'application : chaque traitement
  * décrit ici correspond à une fonctionnalité existante. À relire et compléter
- * par l'éditeur (champs orange), notamment l'identité du responsable de
+ * par l’éditeur (champs en couleur d’avertissement), notamment l’identité du responsable de
  * traitement et l'hébergeur.
  */
 export function ConfidentialitePage() {

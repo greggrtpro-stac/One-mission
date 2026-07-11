@@ -56,7 +56,7 @@ export function LegalSection({ title, children }: { title: string; children: Rea
   )
 }
 
-/** Valeur inline — affichée en orange si elle reste à compléter. */
+/** Valeur inline — affichée en couleur d’avertissement si elle reste à compléter. */
 export function LegalValue({ value }: { value: string }) {
   return value.startsWith('[À COMPLÉTER') ? (
     <span className="text-warning">{value}</span>

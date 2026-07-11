@@ -175,16 +175,21 @@ export function PublicProfilePage() {
           label="DeepWork moyen / jour"
           value={formatHours(stats.focusAvgSecondsPerDay)}
         />
-        <StatTile
-          icon={ShieldCheck}
-          label="Addictions suivies"
-          value={String(stats.addictionsCount)}
-        />
-        <StatTile
-          icon={ShieldCheck}
-          label="Record sans rechute"
-          value={`${stats.longestCleanDays} j`}
-        />
+        {/* null = le joueur garde ses statistiques d'addictions privées. */}
+        {stats.addictionsCount !== null && (
+          <StatTile
+            icon={ShieldCheck}
+            label="Addictions suivies"
+            value={String(stats.addictionsCount)}
+          />
+        )}
+        {stats.longestCleanDays !== null && (
+          <StatTile
+            icon={ShieldCheck}
+            label="Record sans rechute"
+            value={`${stats.longestCleanDays} j`}
+          />
+        )}
       </div>
 
       {/* Graphiques publics — consultation seule */}
@@ -231,7 +236,12 @@ export function PublicProfilePage() {
         <Medal size={15} className="text-accent" /> Succès
       </h2>
       <div className="mt-3">
-        <AchievementGrid user={user} stats={stats} />
+        {/* Statistiques d'addictions masquées : les succès associés apparaissent
+            simplement non débloqués, sans rien révéler. */}
+        <AchievementGrid
+          user={user}
+          stats={{ ...stats, longestCleanDays: stats.longestCleanDays ?? 0 }}
+        />
       </div>
 
       <div className="mt-8 flex justify-center">

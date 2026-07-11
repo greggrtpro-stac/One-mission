@@ -152,6 +152,11 @@ model User {
   // Préférences DeepWork { focusMinutes, shortBreakMinutes, longBreakMinutes, cyclesBeforeLongBreak }
   deepWorkSettings Json?
 
+  // Amis & présence. friendPrefs (null = tout autorisé, voir DEFAULT_FRIEND_PREFS) :
+  // { allowFriendRequests, allowUsernameSearch, showOnlineStatus, showLastSeen, showAddictionsPublicly }
+  friendPrefs Json?
+  lastSeenAt  DateTime? // dernière requête authentifiée (throttlé, voir middleware/auth.ts)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -173,6 +178,66 @@ model User {
   twoFactorCodes     TwoFactorCode[]
   subscription       Subscription?
   feedbacks          Feedback[]
+  sentFriendRequests     FriendRequest[] @relation("FriendRequestSender")
+  receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
+  friendshipsA           Friendship[]    @relation("FriendshipUserA")
+  friendshipsB           Friendship[]    @relation("FriendshipUserB")
+  notificationsInbox     Notification[]
+}
+
+// ── Amis ─────────────────────────────────────────────────────
+
+// Demande d'ami en attente. Acceptée → devient une Friendship et disparaît ;
+// refusée ou annulée → supprimée. L'unicité (sender, receiver) interdit les
+// doublons ; le sens inverse est vérifié en service avant création.
+model FriendRequest {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("FriendRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("FriendRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, createdAt])
+}
+
+// Amitié établie — une seule ligne par paire, avec la convention
+// userAId < userBId (ordre lexicographique) pour rendre le doublon
+// (B, A) impossible par contrainte d'unicité.
+model Friendship {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  userA User @relation("FriendshipUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("FriendshipUserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userBId])
+}
+
+// ── Notifications (centre de notifications à venir) ─────────
+
+enum NotificationType {
+  FRIEND_REQUEST_RECEIVED
+  FRIEND_REQUEST_ACCEPTED
+  FRIEND_REQUEST_DECLINED
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String // destinataire
+  type      NotificationType
+  data      Json? // charge utile libre ({ fromUserId, fromUsername… })
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 // ── Bêta : signalements des testeurs ─────────────────────────

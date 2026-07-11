@@ -63,7 +63,7 @@
   }
 }
 
-/* Halo orange réutilisable (hero, éléments mis en avant) */
+/* Halo violet réutilisable (hero, éléments mis en avant) */
 .glow-accent {
   box-shadow: 0 0 40px -8px var(--accent-glow);
 }

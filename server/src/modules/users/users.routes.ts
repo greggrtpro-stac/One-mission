@@ -60,6 +60,15 @@ const updateProfileSchema = z.object({
     })
     .optional(),
   showOnLeaderboard: z.boolean().optional(),
+  friendPrefs: z
+    .object({
+      allowFriendRequests: z.boolean(),
+      allowUsernameSearch: z.boolean(),
+      showOnlineStatus: z.boolean(),
+      showLastSeen: z.boolean(),
+      showAddictionsPublicly: z.boolean(),
+    })
+    .optional(),
   newsletterOptIn: z.boolean().optional(),
   communicationPrefs: communicationPrefsSchema.optional(),
 })

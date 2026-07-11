@@ -46,6 +46,13 @@ function sessionMeta(req: Request): auth.SessionMeta {
 }
 
 async function sendSession(req: Request, res: Response, userId: string, user: Awaited<ReturnType<typeof auth.login>>, status = 200) {
+  // Connexion alors qu'une session existe déjà dans ce navigateur (changement
+  // de compte sans déconnexion préalable) : l'ancienne session est révoquée,
+  // sinon elle resterait active en base — fantôme dans « Appareils connectés »
+  // du compte précédent alors que son cookie va être écrasé.
+  const previous = req.cookies?.[REFRESH_COOKIE] as string | undefined
+  if (previous) await auth.revokeRefreshToken(previous)
+
   const refreshToken = await auth.issueRefreshToken(userId, sessionMeta(req))
   res
     .status(status)

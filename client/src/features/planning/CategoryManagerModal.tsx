@@ -323,7 +323,7 @@ function CategoryForm({
         <Input
           value={hexInput}
           onChange={(e) => applyHex(e.target.value)}
-          placeholder="#FF7A00"
+          placeholder="#8B5CF6"
           maxLength={7}
           className="font-mono uppercase"
         />

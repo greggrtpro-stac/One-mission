@@ -16,6 +16,7 @@ import {
   Timer,
   Trophy,
   User,
+  Users,
   X,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -43,6 +44,7 @@ const NAV = [
   { to: '/app/addictions', label: 'Addictions', icon: ShieldCheck },
   { to: '/app/journal', label: 'Journal', icon: BookOpenText },
   { to: '/app/leaderboard', label: 'Classement', icon: Trophy },
+  { to: '/app/friends', label: 'Amis', icon: Users },
   { to: '/app/level-up', label: 'Level Up', icon: Rocket },
   { to: '/app/changelog', label: 'Nouveautés', icon: Sparkles },
 ]

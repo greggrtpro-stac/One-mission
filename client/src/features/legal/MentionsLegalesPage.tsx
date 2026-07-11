@@ -5,7 +5,7 @@ import { LegalField, LegalLayout, LegalSection } from './LegalLayout'
 /**
  * Mentions légales (art. 6-III de la LCEN).
  * Les valeurs proviennent de src/config/legal.ts — les champs affichés en
- * orange sont à compléter par l'éditeur du site, rien n'a été inventé.
+ * couleur d’avertissement sont à compléter par l’éditeur du site, rien n’a été inventé.
  */
 export function MentionsLegalesPage() {
   return (
