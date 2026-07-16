@@ -1,5 +1,7 @@
 /** Formes des objets renvoyés par l'API (contrat client/serveur). */
 
+import type { QuestCategoryRef } from './quests.js'
+
 /** Préférences de notifications (architecture prête, envoi réel à venir). */
 export interface NotificationPrefs {
   /** Rappels des quêtes qui arrivent à échéance. */
@@ -190,7 +192,8 @@ export interface QuestDto {
   id: string
   title: string
   description: string | null
-  category: string
+  /** La couleur affichée est toujours celle de la catégorie — jamais stockée sur la quête. */
+  category: QuestCategoryRef
   priority: string
   difficulty: string
   /** Format YYYY-MM-DD. */
@@ -381,8 +384,12 @@ export interface ProfileWeek {
   questsDone: number
 }
 
+/** Quêtes terminées par catégorie personnalisée (répartition du profil). */
 export interface CategoryStat {
-  category: string
+  categoryId: string
+  name: string
+  color: string
+  icon: string
   count: number
 }
 
@@ -462,6 +469,14 @@ export type PublicProfileStats = Omit<
 export interface PublicProfileResponse {
   user: PublicPlayer
   stats: PublicProfileStats
+  /** Guilde du joueur (badge + rôle), ou null s'il n'en a pas. */
+  guild: {
+    id: string
+    name: string
+    icon: string
+    color: string
+    role: 'LEADER' | 'OFFICER' | 'MEMBER'
+  } | null
 }
 
 export interface MainQuestDto {

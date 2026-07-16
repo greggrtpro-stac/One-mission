@@ -3,6 +3,7 @@ import {
   BookOpenText,
   CalendarCheck,
   CalendarDays,
+  Castle,
   LayoutDashboard,
   Menu,
   Moon,
@@ -31,6 +32,7 @@ import { cn } from '@/lib/cn'
 import { chooseTheme } from '@/lib/themePreference'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
+import { NotificationBell } from './NotificationBell'
 import { SidebarProfileCard } from './SidebarProfileCard'
 import { XpMeter } from './XpMeter'
 
@@ -44,6 +46,7 @@ const NAV = [
   { to: '/app/addictions', label: 'Addictions', icon: ShieldCheck },
   { to: '/app/journal', label: 'Journal', icon: BookOpenText },
   { to: '/app/leaderboard', label: 'Classement', icon: Trophy },
+  { to: '/app/guilds', label: 'Guildes', icon: Castle },
   { to: '/app/friends', label: 'Amis', icon: Users },
   { to: '/app/level-up', label: 'Level Up', icon: Rocket },
   { to: '/app/changelog', label: 'Nouveautés', icon: Sparkles },
@@ -175,6 +178,8 @@ export function AppShell() {
           <div className="flex-1" />
 
           <BugReportButton />
+
+          <NotificationBell />
 
           <XpMeter />
 

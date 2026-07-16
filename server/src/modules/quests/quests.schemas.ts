@@ -8,15 +8,6 @@ const timeSchema = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue au format HH:mm')
 
-export const questCategoryEnum = z.enum([
-  'SPORT',
-  'TRAVAIL',
-  'ETUDES',
-  'SANTE',
-  'PERSO',
-  'FINANCE',
-  'AUTRE',
-])
 export const priorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
 export const difficultyEnum = z.enum(['TRIVIAL', 'EASY', 'MEDIUM', 'HARD', 'EPIC'])
 
@@ -34,7 +25,8 @@ const questPlanningSchema = z
 export const createQuestSchema = z.object({
   title: z.string().min(1, 'Titre requis').max(120),
   description: z.string().max(2000).nullable().optional(),
-  category: questCategoryEnum.default('AUTRE'),
+  /** Catégorie personnalisée de l'utilisateur (propriété vérifiée en service). */
+  categoryId: z.string().min(1, 'Catégorie requise'),
   priority: priorityEnum.default('MEDIUM'),
   difficulty: difficultyEnum.default('MEDIUM'),
   dueDate: dateSchema,
@@ -45,7 +37,7 @@ export const createQuestSchema = z.object({
 export const updateQuestSchema = z.object({
   title: z.string().min(1).max(120).optional(),
   description: z.string().max(2000).nullable().optional(),
-  category: questCategoryEnum.optional(),
+  categoryId: z.string().min(1).optional(),
   priority: priorityEnum.optional(),
   difficulty: difficultyEnum.optional(),
   dueDate: dateSchema.optional(),

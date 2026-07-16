@@ -1,14 +1,13 @@
 import {
-  CATEGORY_LABELS,
   PRIORITY_LABELS,
   XP_BY_DIFFICULTY,
   type Difficulty,
   type Priority,
-  type QuestCategory,
   type QuestDto,
 } from '@one-mission/shared'
 import { motion } from 'framer-motion'
 import { Check, Clock, Pencil, Trash2, Zap } from 'lucide-react'
+import { CategoryBadge } from '@/components/categories/CategoryBadge'
 import { Badge, ProgressBar } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { formatDayFr, relativeDay } from '@/lib/dates'
@@ -81,7 +80,7 @@ export function QuestCard({ quest, onToggle, onEdit, onDelete, disabled }: Quest
           <Badge variant="accent">
             <Zap size={11} fill="currentColor" /> {xp} XP
           </Badge>
-          <Badge variant="neutral">{CATEGORY_LABELS[quest.category as QuestCategory]}</Badge>
+          <CategoryBadge category={quest.category} />
           <span className="inline-flex items-center gap-1.5 text-muted">
             <span className={cn('size-1.5 rounded-full', priorityDot[quest.priority as Priority])} />
             {PRIORITY_LABELS[quest.priority as Priority]}

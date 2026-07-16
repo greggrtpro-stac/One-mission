@@ -1,12 +1,19 @@
-import type { MainQuestDto, MainQuestMilestone, QuestDto } from '@one-mission/shared'
+import type { MainQuestDto, MainQuestMilestone, QuestCategoryRef, QuestDto } from '@one-mission/shared'
 import type { MainQuest, Quest } from '../../generated/prisma/client.js'
 
-export function toQuestDto(quest: Quest): QuestDto {
+/** Sélection de la catégorie embarquée dans chaque quête renvoyée à l'API. */
+export const questCategoryRefSelect = {
+  select: { id: true, name: true, color: true, icon: true },
+} as const
+
+export type QuestWithCategory = Quest & { questCategory: QuestCategoryRef }
+
+export function toQuestDto(quest: QuestWithCategory): QuestDto {
   return {
     id: quest.id,
     title: quest.title,
     description: quest.description,
-    category: quest.category,
+    category: quest.questCategory,
     priority: quest.priority,
     difficulty: quest.difficulty,
     dueDate: quest.dueDate.toISOString().slice(0, 10),

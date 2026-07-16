@@ -10,6 +10,7 @@ import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
 import { REFRESH_COOKIE, refreshCookieOptions } from '../auth/auth.routes.js'
 import * as auth from '../auth/auth.service.js'
+import { handleAccountDeletion } from '../guilds/guilds.service.js'
 import { emailSchema, nameSchema, passwordSchema, usernameSchema } from '../auth/auth.schemas.js'
 import { toPublicUser } from './users.mapper.js'
 
@@ -256,6 +257,8 @@ usersRouter.delete(
       if (!ok) throw new ApiError(401, 'Mot de passe incorrect', 'INVALID_CREDENTIALS')
     }
 
+    // Une guilde ne reste jamais sans chef : transmission (ou dissolution) avant cascade.
+    await handleAccountDeletion(userId)
     await prisma.user.delete({ where: { id: userId } })
     res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions, maxAge: undefined }).status(204).end()
   },

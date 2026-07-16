@@ -1,20 +1,16 @@
-import {
-  CATEGORY_LABELS,
-  QUEST_CATEGORIES,
-  type QuestCategory,
-  type QuestDto,
-} from '@one-mission/shared'
+import type { QuestCategoryDto, QuestDto } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Plus, Swords, Trash2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { mainQuestApi, questsApi } from '@/api/quests'
-import { Button, ConfirmDialog, Select, Spinner } from '@/components/ui'
+import { Check, ChevronDown, ListFilter, Plus, Settings2, Swords, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { mainQuestApi, questCategoriesApi, questsApi } from '@/api/quests'
+import { Button, ConfirmDialog, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { relativeDay } from '@/lib/dates'
 import { applyXpResult } from '@/stores/xpFx'
 import { MainQuestCard } from './MainQuestCard'
 import { QuestCard } from './QuestCard'
+import { QuestCategoryManagerModal } from './QuestCategoryManagerModal'
 import { QuestFormModal } from './QuestFormModal'
 
 type Group = { key: string; label: string; quests: QuestDto[] }
@@ -22,12 +18,19 @@ type Group = { key: string; label: string; quests: QuestDto[] }
 export function QuestsPage() {
   const queryClient = useQueryClient()
   const [formOpen, setFormOpen] = useState(false)
+  const [categoriesOpen, setCategoriesOpen] = useState(false)
   const [editing, setEditing] = useState<QuestDto | undefined>(undefined)
-  const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
+  /** null = toutes les catégories (aucun filtre actif). */
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<ReadonlySet<string> | null>(null)
   const [showDone, setShowDone] = useState(false)
 
   const questsQuery = useQuery({ queryKey: ['quests'], queryFn: questsApi.list })
   const mainQuestQuery = useQuery({ queryKey: ['main-quest'], queryFn: mainQuestApi.get })
+  const categoriesQuery = useQuery({
+    queryKey: ['quest-categories'],
+    queryFn: () => questCategoriesApi.list().then((r) => r.categories),
+  })
+  const categories = categoriesQuery.data ?? []
 
   const toggle = useMutation({
     mutationFn: (quest: QuestDto) =>
@@ -44,6 +47,7 @@ export function QuestsPage() {
     onSuccess: (result) => {
       applyXpResult(result.xp)
       void queryClient.invalidateQueries({ queryKey: ['quests'] })
+      void queryClient.invalidateQueries({ queryKey: ['quest-categories'] })
       setToDelete(null)
     },
   })
@@ -51,9 +55,9 @@ export function QuestsPage() {
   const all = useMemo(
     () =>
       (questsQuery.data?.quests ?? []).filter(
-        (q) => categoryFilter === 'ALL' || q.category === categoryFilter,
+        (q) => selectedCategoryIds === null || selectedCategoryIds.has(q.category.id),
       ),
-    [questsQuery.data, categoryFilter],
+    [questsQuery.data, selectedCategoryIds],
   )
 
   const { groups, doneQuests } = useMemo(() => {
@@ -105,9 +109,14 @@ export function QuestsPage() {
             Chaque quête terminée te rapporte de l'expérience.
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus size={16} /> Nouvelle quête
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setCategoriesOpen(true)}>
+            <Settings2 size={16} /> Gérer les catégories
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus size={16} /> Nouvelle quête
+          </Button>
+        </div>
       </div>
 
       <div className="mt-6">
@@ -116,19 +125,11 @@ export function QuestsPage() {
 
       <div className="mt-8 flex items-center justify-between gap-3">
         <h2 className="font-semibold">Mes quêtes</h2>
-        <Select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-44"
-          aria-label="Filtrer par catégorie"
-        >
-          <option value="ALL">Toutes les catégories</option>
-          {QUEST_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {CATEGORY_LABELS[c as QuestCategory]}
-            </option>
-          ))}
-        </Select>
+        <CategoryFilter
+          categories={categories}
+          selected={selectedCategoryIds}
+          onChange={setSelectedCategoryIds}
+        />
       </div>
 
       {questsQuery.isLoading ? (
@@ -140,13 +141,27 @@ export function QuestsPage() {
           <span className="flex size-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">
             <Swords size={24} />
           </span>
-          <p className="font-semibold">Aucune quête pour l'instant</p>
-          <p className="max-w-sm text-sm text-muted">
-            Crée ta première quête et commence à gagner de l'XP.
-          </p>
-          <Button size="sm" onClick={openCreate}>
-            <Plus size={14} /> Créer une quête
-          </Button>
+          {selectedCategoryIds !== null && (questsQuery.data?.quests.length ?? 0) > 0 ? (
+            <>
+              <p className="font-semibold">Aucune quête dans ces catégories</p>
+              <p className="max-w-sm text-sm text-muted">
+                Élargis le filtre pour retrouver tes autres quêtes.
+              </p>
+              <Button size="sm" variant="secondary" onClick={() => setSelectedCategoryIds(null)}>
+                Afficher toutes les catégories
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold">Aucune quête pour l'instant</p>
+              <p className="max-w-sm text-sm text-muted">
+                Crée ta première quête et commence à gagner de l'XP.
+              </p>
+              <Button size="sm" onClick={openCreate}>
+                <Plus size={14} /> Créer une quête
+              </Button>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-6">
@@ -210,6 +225,7 @@ export function QuestsPage() {
       )}
 
       <QuestFormModal open={formOpen} onClose={() => setFormOpen(false)} quest={editing} />
+      <QuestCategoryManagerModal open={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
 
       <ConfirmDialog
         open={toDelete !== null}
@@ -227,6 +243,143 @@ export function QuestsPage() {
         confirmLabel="Supprimer"
         loading={remove.isPending}
       />
+    </div>
+  )
+}
+
+/**
+ * Filtre multi-catégories instantané : menu à cases à cocher, aucun appel
+ * réseau (le filtrage se fait sur les quêtes déjà chargées). `selected` à
+ * null signifie « toutes » — cocher/décocher construit un sous-ensemble.
+ */
+function CategoryFilter({
+  categories,
+  selected,
+  onChange,
+}: {
+  categories: QuestCategoryDto[]
+  selected: ReadonlySet<string> | null
+  onChange: (next: ReadonlySet<string> | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(e: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  function isChecked(id: string) {
+    return selected === null || selected.has(id)
+  }
+
+  function toggleCategory(id: string) {
+    const next = new Set(selected ?? categories.map((c) => c.id))
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    // Tout coché = retour à l'état « aucun filtre ».
+    onChange(next.size === categories.length ? null : next)
+  }
+
+  const activeCount = selected === null ? categories.length : selected.size
+  const filtering = selected !== null
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        className={cn(
+          'flex h-9 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors',
+          filtering
+            ? 'border-accent bg-accent-soft text-accent'
+            : 'border-line bg-surface text-muted hover:border-line-strong hover:text-ink',
+        )}
+      >
+        <ListFilter size={15} />
+        Catégories
+        {filtering && (
+          <span className="tabular-nums">
+            · {activeCount}/{categories.length}
+          </span>
+        )}
+        <ChevronDown size={14} className={cn('transition-transform', open && 'rotate-180')} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.12 }}
+            className="absolute right-0 z-20 mt-2 w-60 rounded-2xl border border-line bg-surface p-2 shadow-lg"
+          >
+            <p className="px-2 pt-1 pb-2 text-[11px] font-bold tracking-[0.14em] text-faint uppercase">
+              Afficher uniquement
+            </p>
+            <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
+              {categories.length === 0 ? (
+                <p className="px-2 py-3 text-sm text-muted">Aucune catégorie.</p>
+              ) : (
+                categories.map((category) => {
+                  const checked = isChecked(category.id)
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={checked}
+                      onClick={() => toggleCategory(category.id)}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-surface-2"
+                    >
+                      <span
+                        className={cn(
+                          'flex size-4 shrink-0 items-center justify-center rounded border transition-colors',
+                          checked
+                            ? 'border-accent bg-accent text-on-accent'
+                            : 'border-line-strong bg-surface',
+                        )}
+                      >
+                        {checked && <Check size={11} strokeWidth={3.5} />}
+                      </span>
+                      <span aria-hidden>{category.icon}</span>
+                      <span className="min-w-0 flex-1 truncate">{category.name}</span>
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: category.color }}
+                        aria-hidden
+                      />
+                    </button>
+                  )
+                })
+              )}
+            </div>
+            {filtering && (
+              <button
+                type="button"
+                onClick={() => onChange(null)}
+                className="mt-1 w-full rounded-lg border-t border-line px-2 py-2 text-left text-sm font-medium text-accent transition-colors hover:bg-surface-2"
+              >
+                Tout afficher
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

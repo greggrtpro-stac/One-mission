@@ -13,16 +13,6 @@ datasource db {
 
 // ── Enums ────────────────────────────────────────────────────
 
-enum QuestCategory {
-  SPORT
-  TRAVAIL
-  ETUDES
-  SANTE
-  PERSO
-  FINANCE
-  AUTRE
-}
-
 enum Priority {
   LOW
   MEDIUM
@@ -161,6 +151,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   quests           Quest[]
+  questCategories  QuestCategory[]
   questCompletions QuestCompletion[]
   mainQuest        MainQuest?
   weeklyQuests     WeeklyQuest[]
@@ -183,6 +174,11 @@ model User {
   friendshipsA           Friendship[]    @relation("FriendshipUserA")
   friendshipsB           Friendship[]    @relation("FriendshipUserB")
   notificationsInbox     Notification[]
+  guildMembership        GuildMember?
+  guildInvitesSent       GuildInvitation[] @relation("GuildInviter")
+  guildInvitesReceived   GuildInvitation[] @relation("GuildInvitee")
+  guildJoinRequests      GuildJoinRequest[]
+  guildMessages          GuildMessage[]
 }
 
 // ── Amis ─────────────────────────────────────────────────────
@@ -219,12 +215,148 @@ model Friendship {
   @@index([userBId])
 }
 
+// ── Guildes ──────────────────────────────────────────────────
+
+enum GuildRole {
+  LEADER
+  OFFICER
+  MEMBER
+}
+
+/// Guilde de joueurs (20 membres max — GUILD_MAX_MEMBERS côté shared, copié
+/// dans maxMembers pour pouvoir évoluer par guilde plus tard : événements,
+/// récompenses collectives…). Le nom est unique (l'insensibilité à la casse
+/// est vérifiée en service, la contrainte DB couvre l'égalité exacte).
+model Guild {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String? @db.Text
+  icon        String  @default("🛡️") // emoji libre (même sélecteur que les catégories)
+  color       String  @default("#8B5CF6") // hex "#RRGGBB"
+  /// Niveau minimum requis pour rejoindre (1 = ouvert à tous).
+  minLevel    Int     @default(1)
+  /// Ouverte : un joueur éligible rejoint directement ; fermée : demande d'adhésion.
+  isOpen      Boolean @default(true)
+  maxMembers  Int     @default(20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members      GuildMember[]
+  invitations  GuildInvitation[]
+  joinRequests GuildJoinRequest[]
+  messages     GuildMessage[]
+  statistics   GuildStatistics[]
+}
+
+/// Appartenance à une guilde. userId est UNIQUE : un joueur ne peut appartenir
+/// qu'à une seule guilde à la fois — la règle est garantie par la base, pas
+/// seulement par le service. lastReadAt alimente le compteur de messages non
+/// lus (la « notification » de nouveau message, sans spammer la table
+/// Notification à chaque message).
+model GuildMember {
+  id         String    @id @default(cuid())
+  guildId    String
+  userId     String    @unique
+  role       GuildRole @default(MEMBER)
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime  @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, role])
+}
+
+/// Invitation envoyée par le chef ou un officier à un joueur précis.
+/// Acceptée → devient un GuildMember et disparaît ; refusée → supprimée.
+model GuildInvitation {
+  id        String   @id @default(cuid())
+  guildId   String
+  inviterId String
+  inviteeId String
+  createdAt DateTime @default(now())
+
+  guild   Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  inviter User  @relation("GuildInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee User  @relation("GuildInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, inviteeId])
+  @@index([inviteeId, createdAt])
+}
+
+/// Demande d'adhésion d'un joueur (guilde fermée ou par choix).
+/// Acceptée → GuildMember ; refusée ou annulée → supprimée.
+model GuildJoinRequest {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  message   String? // mot d'accompagnement facultatif
+  createdAt DateTime @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, userId])
+  @@index([guildId, createdAt])
+}
+
+/// Message du chat de guilde. authorId nullable + SetNull : les messages
+/// survivent à la suppression du compte de leur auteur (« joueur supprimé »).
+/// La réponse à un message supprimé perd simplement sa citation (SetNull).
+model GuildMessage {
+  id        String   @id @default(cuid())
+  guildId   String
+  authorId  String?
+  content   String   @db.Text
+  replyToId String?
+  createdAt DateTime @default(now())
+
+  guild   Guild          @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  author  User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  replyTo GuildMessage?  @relation("GuildMessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies GuildMessage[] @relation("GuildMessageReply")
+
+  @@index([guildId, createdAt])
+}
+
+/// Instantané quotidien des statistiques d'une guilde — alimente les
+/// graphiques d'évolution (XP, classement, membres). Créé paresseusement au
+/// premier calcul du classement de la journée : aucun job planifié requis.
+model GuildStatistics {
+  id          String   @id @default(cuid())
+  guildId     String
+  date        DateTime @db.Date
+  totalXp     Int
+  memberCount Int
+  avgLevel    Float
+  questsDone  Int
+  totalStreak Int
+  score       Int
+  rank        Int
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, date])
+  @@index([guildId, date])
+}
+
 // ── Notifications (centre de notifications à venir) ─────────
 
 enum NotificationType {
   FRIEND_REQUEST_RECEIVED
   FRIEND_REQUEST_ACCEPTED
   FRIEND_REQUEST_DECLINED
+  GUILD_INVITATION_RECEIVED
+  GUILD_REQUEST_RECEIVED
+  GUILD_REQUEST_ACCEPTED
+  GUILD_REQUEST_DECLINED
+  GUILD_MEMBER_JOINED
+  GUILD_MEMBER_LEFT
+  GUILD_PROMOTED_OFFICER
+  GUILD_DEMOTED_OFFICER
+  GUILD_LEADERSHIP_TRANSFERRED
+  GUILD_KICKED
 }
 
 model Notification {
@@ -382,33 +514,64 @@ model TwoFactorCode {
 
 // ── Quêtes ───────────────────────────────────────────────────
 
+/// Catégorie de quêtes propre à un utilisateur (nom, couleur, icône libres) —
+/// même modèle que PlanningCategory, les deux systèmes restent découplés.
+/// Remplace l'ancien enum figé QuestCategory (migration quest_categories_custom :
+/// backfill des catégories par défaut et mapping des quêtes existantes).
+/// isDefault marque la catégorie de repli : toujours exactement une par
+/// utilisateur, jamais zéro (voir quest-categories.service.ts).
+model QuestCategory {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String // hex "#RRGGBB"
+  icon      String  @default("📁") // emoji libre, jamais vide
+  isDefault Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quests      Quest[]
+  completions QuestCompletion[]
+
+  @@unique([userId, name])
+  @@index([userId, sortOrder])
+}
+
 model Quest {
-  id          String        @id @default(cuid())
+  id          String      @id @default(cuid())
   userId      String
   title       String
   description String?
-  category    QuestCategory @default(AUTRE)
-  priority    Priority      @default(MEDIUM)
-  difficulty  Difficulty    @default(MEDIUM)
-  dueDate     DateTime      @db.Date
+  categoryId  String
+  priority    Priority    @default(MEDIUM)
+  difficulty  Difficulty  @default(MEDIUM)
+  dueDate     DateTime    @db.Date
   dueTime     String? // "HH:mm", facultatif
-  status      QuestStatus   @default(TODO)
-  progress    Int           @default(0) // 0–100
-  xpAwarded   Int           @default(0) // XP réellement versée (idempotence)
+  status      QuestStatus @default(TODO)
+  progress    Int         @default(0) // 0–100
+  xpAwarded   Int         @default(0) // XP réellement versée (idempotence)
   completedAt DateTime?
   // Posé par la migration 20260706164006 (branche quêtes journalières) :
   // nombre total de jours où la quête a été réalisée. Inutilisé par main
   // tant que la branche n'est pas mergée.
   totalCompletions Int @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   planningEvent PlanningEvent?
   completions   QuestCompletion[]
+  // Pas de onDelete ici (Restrict par défaut) : la suppression d'une catégorie
+  // encore référencée doit être bloquée par la base tant que le service n'a
+  // pas explicitement réaffecté ou supprimé ses quêtes (jamais de perte
+  // silencieuse — voir quest-categories.service.ts#deleteCategory).
+  questCategory QuestCategory  @relation(fields: [categoryId], references: [id])
 
   @@index([userId, dueDate])
   @@index([userId, status])
+  @@index([categoryId])
 }
 
 /// Historique des accomplissements journaliers : une ligne par quête et par
@@ -417,25 +580,28 @@ model Quest {
 /// Table posée par la branche quêtes journalières (migration 20260706164006) ;
 /// le code de main ne l'exploite pas encore.
 model QuestCompletion {
-  id          String        @id @default(cuid())
+  id          String  @id @default(cuid())
   userId      String
   questId     String? // null si la quête a été supprimée depuis
-  category    QuestCategory
+  categoryId  String? // null si la catégorie a été supprimée depuis
   xpAwarded   Int
   completedAt DateTime
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest    Quest?         @relation(fields: [questId], references: [id], onDelete: SetNull)
+  category QuestCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([userId, completedAt])
   @@index([questId])
+  @@index([categoryId])
 }
 
 // ── Planning ─────────────────────────────────────────────────
 
 /// Catégorie de planning propre à un utilisateur (nom, couleur, icône libres).
-/// Remplace l'ancien enum figé QuestCategory pour les événements de Planning —
-/// celui-ci reste utilisé tel quel par Quest/QuestCompletion, systèmes découplés.
+/// Les Quêtes ont leur propre modèle équivalent (QuestCategory) : les deux
+/// systèmes restent découplés, seule une correspondance par nom est tentée
+/// quand une quête et un événement sont liés.
 /// isDefault marque la catégorie de repli ("Autre") : toujours exactement une
 /// par utilisateur, jamais zéro (voir planning-categories.service.ts).
 model PlanningCategory {

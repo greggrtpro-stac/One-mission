@@ -7,6 +7,7 @@ import type {
 import type { PlanningEvent, Quest } from '../../generated/prisma/client.js'
 import { prisma } from '../../lib/prisma.js'
 import { ApiError } from '../../middleware/error.js'
+import { getFallbackCategory as getFallbackQuestCategory } from '../quests/quest-categories.service.js'
 import { completeQuest, uncompleteQuest } from '../quests/quests.service.js'
 import { ensureDefaultCategories, getOwnedCategory } from './planning-categories.service.js'
 import { toPlanningEventDto, type PlanningEventWithQuest } from './planning.mapper.js'
@@ -155,16 +156,22 @@ export async function convertToQuest(
   const event = await getOwnedEvent(userId, eventId)
   if (event.questId) throw new ApiError(409, 'Cet événement est déjà lié à une quête')
 
+  // Les catégories de Planning et de Quêtes restent découplées : la quête
+  // naît dans la catégorie de Quêtes du même nom que celle de l'événement si
+  // elle existe, sinon dans la catégorie de repli (symétrique du choix fait
+  // par « Ajouter au Planning » à la création d'une quête).
+  const questCategory =
+    (await prisma.questCategory.findFirst({
+      where: { userId, name: event.planningCategory.name },
+    })) ?? (await getFallbackQuestCategory(userId))
+
   await prisma.$transaction(async (tx) => {
     const quest = await tx.quest.create({
       data: {
         userId,
         title: event.title,
         description: event.description,
-        // Les catégories de Planning (personnalisées par utilisateur) et des
-        // Quêtes (enum figé) sont désormais deux systèmes découplés : pas de
-        // correspondance directe possible dans ce sens, on retombe sur AUTRE.
-        category: 'AUTRE',
+        categoryId: questCategory.id,
         priority: event.priority,
         difficulty: input.difficulty as Quest['difficulty'],
         dueDate: new Date(input.dueDate),

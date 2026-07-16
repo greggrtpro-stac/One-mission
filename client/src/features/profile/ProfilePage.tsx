@@ -1,14 +1,10 @@
-import {
-  CATEGORY_LABELS,
-  xpForLevel,
-  type ProfileStats,
-  type QuestCategory,
-} from '@one-mission/shared'
+import { xpForLevel, type ProfileStats } from '@one-mission/shared'
 import { useQuery } from '@tanstack/react-query'
 import {
   Award,
   CalendarCheck,
   CalendarDays,
+  Castle,
   Flame,
   ListChecks,
   Medal,
@@ -20,8 +16,12 @@ import {
   TrendingUp,
   Trophy,
 } from 'lucide-react'
+import { GUILD_ROLE_LABELS } from '@one-mission/shared'
+import { Link } from 'react-router-dom'
+import { guildsApi } from '@/api/guilds'
 import { statsApi } from '@/api/stats'
-import { Avatar, Badge, Card, ProgressBar, Spinner } from '@/components/ui'
+import { Avatar, Badge, Button, Card, ProgressBar, Spinner } from '@/components/ui'
+import { GuildIcon, RoleBadge } from '@/features/guilds/GuildIcon'
 import { FeatureGate } from '@/features/subscription/FeatureGate'
 import { formatDayFr } from '@/lib/dates'
 import { useAuthStore } from '@/stores/auth'
@@ -77,7 +77,7 @@ function AddictionRows({ addictions }: { addictions: ProfileStats['addictions'] 
   )
 }
 
-/** Répartition par catégorie : l'identité est portée par la ligne, pas la couleur. */
+/** Répartition par catégorie personnalisée : emoji + nom, barre à la couleur choisie. */
 function CategoryBars({ categories }: { categories: ProfileStats['categories'] }) {
   if (categories.length === 0) {
     return (
@@ -88,20 +88,76 @@ function CategoryBars({ categories }: { categories: ProfileStats['categories'] }
   return (
     <div className="flex flex-col gap-2.5">
       {categories.map((c) => (
-        <div key={c.category} className="grid grid-cols-[6rem,1fr,2.5rem] items-center gap-3">
+        <div key={c.categoryId} className="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-3">
           <p className="truncate text-sm text-muted">
-            {CATEGORY_LABELS[c.category as QuestCategory] ?? c.category}
+            <span className="mr-1" aria-hidden>
+              {c.icon}
+            </span>
+            {c.name}
           </p>
           <div className="h-4 overflow-hidden rounded bg-surface-2">
             <div
               className="h-full rounded"
-              style={{ width: `${(c.count / max) * 100}%`, background: 'var(--chart-1)' }}
+              style={{ width: `${(c.count / max) * 100}%`, background: c.color }}
             />
           </div>
           <p className="text-right text-sm font-semibold tabular-nums">{c.count}</p>
         </div>
       ))}
     </div>
+  )
+}
+
+/** Section Guilde du profil : badge de la guilde du joueur, ou invitation à en rejoindre une. */
+function GuildSection() {
+  const query = useQuery({ queryKey: ['my-guild'], queryFn: guildsApi.mine })
+  const guild = query.data?.guild
+  const myRole = guild?.relation.kind === 'member' ? guild.relation.role : null
+
+  return (
+    <>
+      <h2 className="mt-8 flex items-center gap-2 text-sm font-semibold tracking-wide text-muted uppercase">
+        <Castle size={15} className="text-accent" /> Guilde
+      </h2>
+      <Card className="mt-3 p-5">
+        {query.isPending ? (
+          <div className="flex justify-center py-2">
+            <Spinner className="text-accent" />
+          </div>
+        ) : guild ? (
+          <div className="flex flex-wrap items-center gap-4">
+            <GuildIcon icon={guild.icon} color={guild.color} size={48} />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 truncate text-base font-bold">
+                {guild.name}
+                {myRole && <RoleBadge role={myRole} />}
+              </p>
+              <p className="text-xs text-muted">
+                {myRole ? GUILD_ROLE_LABELS[myRole] : 'Membre'} · {guild.memberCount}/
+                {guild.maxMembers} membres · #{guild.rank} mondial
+              </p>
+            </div>
+            <Link to="/app/guilds">
+              <Button size="sm" variant="secondary">
+                Voir la guilde
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="flex size-12 items-center justify-center rounded-xl bg-surface-2 text-xl">
+              🛡️
+            </span>
+            <p className="min-w-0 flex-1 text-sm text-muted">
+              Tu n'appartiens à aucune guilde. Rejoins-en une pour progresser en équipe !
+            </p>
+            <Link to="/app/guilds">
+              <Button size="sm">Découvrir les guildes</Button>
+            </Link>
+          </div>
+        )}
+      </Card>
+    </>
   )
 }
 
@@ -166,6 +222,8 @@ export function ProfilePage() {
           </div>
         </div>
       </Card>
+
+      <GuildSection />
 
       {query.isLoading || !stats ? (
         <div className="flex justify-center py-16">

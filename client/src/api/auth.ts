@@ -7,6 +7,7 @@ import type {
 import { queryClient } from '@/lib/queryClient'
 import { useAuthStore } from '@/stores/auth'
 import { http, refreshSession } from './http'
+import { waitForApiReady } from './ready'
 
 /**
  * Les clés de requêtes ne sont pas liées à un utilisateur : au changement
@@ -86,8 +87,14 @@ export function fetchTurnstileSiteKey() {
   return http.get<TurnstileSiteKeyResponse>('/api/auth/turnstile/site-key')
 }
 
-/** Restaure la session au chargement de l'app (cookie refresh httpOnly). */
+/**
+ * Restaure la session au chargement de l'app (cookie refresh httpOnly).
+ * Attend d'abord que l'API réponde : au lancement du projet, le backend
+ * démarre après Vite et un refresh trop précoce échouerait — statut resté
+ * à « loading », donc les gardes affichent le SplashScreen pendant l'attente.
+ */
 export async function bootstrapSession(): Promise<void> {
+  await waitForApiReady()
   const token = await refreshSession()
   if (!token) useAuthStore.getState().setGuest()
 }

@@ -1,9 +1,12 @@
 import type { LeaderboardEntry } from '@one-mission/shared'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, Crown, EyeOff, Flame, Trophy } from 'lucide-react'
+import { Castle, ChevronRight, Crown, EyeOff, Flame, Search, Trophy, User } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { guildsApi } from '@/api/guilds'
 import { leaderboardApi } from '@/api/stats'
-import { Avatar, Badge, Card, Spinner } from '@/components/ui'
+import { Avatar, Badge, Card, Input, Spinner } from '@/components/ui'
+import { GuildRow } from '@/features/guilds/GuildRow'
 import { cn } from '@/lib/cn'
 import { useAuthStore } from '@/stores/auth'
 
@@ -60,10 +63,84 @@ function Row({ entry }: { entry: LeaderboardEntry }) {
   )
 }
 
+/** Classement des guildes, avec recherche instantanée par nom. */
+function GuildsBoard() {
+  const [input, setInput] = useState('')
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(input.trim()), 250)
+    return () => clearTimeout(t)
+  }, [input])
+
+  const leaderboard = useQuery({
+    queryKey: ['guild-leaderboard'],
+    queryFn: guildsApi.leaderboard,
+  })
+  const search = useQuery({
+    queryKey: ['guild-search', query],
+    queryFn: () => guildsApi.search(query),
+    enabled: query.length >= 1,
+    placeholderData: (prev) => prev,
+  })
+
+  const searching = query.length >= 1
+  const entries = searching ? (search.data?.results ?? []) : (leaderboard.data?.entries ?? [])
+  const loading = searching ? search.isPending : leaderboard.isPending
+
+  return (
+    <>
+      <Card className="mt-6 p-4">
+        <Input
+          placeholder="Rechercher une guilde par son nom…"
+          aria-label="Rechercher une guilde"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          trailing={<Search size={16} className="text-muted" />}
+        />
+      </Card>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Spinner className="text-accent" />
+        </div>
+      ) : entries.length > 0 ? (
+        <ul className="mt-4 flex flex-col gap-2">
+          {entries.map((entry) => (
+            <GuildRow key={entry.id} entry={entry} />
+          ))}
+        </ul>
+      ) : (
+        <Card className="mt-4 p-8 text-center text-sm text-muted">
+          {searching ? (
+            <>Aucune guilde trouvée pour « {query} ».</>
+          ) : (
+            <>
+              Aucune guilde pour l'instant —{' '}
+              <Link to="/app/guilds" className="font-medium text-accent hover:underline">
+                crée la première
+              </Link>{' '}
+              !
+            </>
+          )}
+        </Card>
+      )}
+    </>
+  )
+}
+
+type BoardTab = 'players' | 'guilds'
+
 export function LeaderboardPage() {
+  const [tab, setTab] = useState<BoardTab>('players')
   const query = useQuery({ queryKey: ['leaderboard'], queryFn: leaderboardApi.get })
   const data = query.data
   const isHidden = useAuthStore((s) => s.user?.showOnLeaderboard === false)
+
+  const tabs: { id: BoardTab; label: string; icon: typeof User }[] = [
+    { id: 'players', label: 'Joueurs', icon: User },
+    { id: 'guilds', label: 'Guildes', icon: Castle },
+  ]
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -71,12 +148,15 @@ export function LeaderboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Classement</h1>
           <p className="mt-1 text-sm text-muted">
-            {data
-              ? `${data.totalPlayers} joueur${data.totalPlayers > 1 ? 's' : ''} en quête de leur mission.`
-              : 'Les joueurs les plus réguliers, classés par XP totale.'}
+            {tab === 'guilds'
+              ? 'Les guildes les plus puissantes, classées par Score global.'
+              : data
+                ? `${data.totalPlayers} joueur${data.totalPlayers > 1 ? 's' : ''} en quête de leur mission.`
+                : 'Les joueurs les plus réguliers, classés par XP totale.'}
           </p>
         </div>
-        {data &&
+        {tab === 'players' &&
+          data &&
           (isHidden ? (
             <Badge variant="outline" className="text-sm">
               <EyeOff size={13} /> Profil masqué
@@ -89,7 +169,26 @@ export function LeaderboardPage() {
           ))}
       </div>
 
-      {query.isLoading ? (
+      {/* ── Joueurs / Guildes ── */}
+      <div className="mt-5 flex gap-1 rounded-2xl border border-line bg-surface p-1">
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+              tab === id ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink',
+            )}
+          >
+            <Icon size={15} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'guilds' ? (
+        <GuildsBoard />
+      ) : query.isLoading ? (
         <div className="flex justify-center py-16">
           <Spinner className="text-accent" />
         </div>

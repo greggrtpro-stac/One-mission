@@ -88,7 +88,7 @@ export async function computeProfileStats(user: StatsSubject): Promise<ProfileSt
       select: { name: true, icon: true, startDate: true, bestStreak: true, relapseCount: true },
     }),
     prisma.quest.groupBy({
-      by: ['category'],
+      by: ['categoryId'],
       where: { userId, status: 'DONE' },
       _count: { _all: true },
     }),
@@ -168,6 +168,27 @@ export async function computeProfileStats(user: StatsSubject): Promise<ProfileSt
     if (stat) stat.questsDone += 1
   }
 
+  // ── Répartition par catégorie personnalisée ─────────────────
+  // La FK Restrict garantit qu'une quête ne survit jamais à sa catégorie ;
+  // le repli neutre reste une simple défense en profondeur.
+  const categoryMeta = await prisma.questCategory.findMany({
+    where: { id: { in: categories.map((c) => c.categoryId) } },
+    select: { id: true, name: true, color: true, icon: true },
+  })
+  const categoryById = new Map(categoryMeta.map((c) => [c.id, c]))
+  const categoryStats = categories
+    .map((c) => {
+      const meta = categoryById.get(c.categoryId)
+      return {
+        categoryId: c.categoryId,
+        name: meta?.name ?? 'Autre',
+        color: meta?.color ?? '#6B7280',
+        icon: meta?.icon ?? '📁',
+        count: c._count._all,
+      }
+    })
+    .sort((a, b) => b.count - a.count)
+
   // ── Addictions : série en cours et records ──────────────────
   const addictionStats = addictions.map((a) => {
     const currentDays = Math.max(0, Math.floor((now.getTime() - a.startDate.getTime()) / DAY_MS))
@@ -208,8 +229,6 @@ export async function computeProfileStats(user: StatsSubject): Promise<ProfileSt
     days,
     weeks,
     addictions: addictionStats,
-    categories: categories
-      .map((c) => ({ category: c.category, count: c._count._all }))
-      .sort((a, b) => b.count - a.count),
+    categories: categoryStats,
   }
 }

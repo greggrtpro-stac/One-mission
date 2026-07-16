@@ -1,6 +1,7 @@
 export * from './api.js'
 export * from './friends.js'
 export * from './gamification.js'
+export * from './guilds.js'
 export * from './password.js'
 export * from './planning.js'
 export * from './quests.js'

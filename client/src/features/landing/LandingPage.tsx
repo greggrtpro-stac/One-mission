@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '@/api/http'
+import { waitForApiReady } from '@/api/ready'
 import { LegalFooterLinks } from '@/components/LegalFooterLinks'
 import { Badge, Button, Card, Logo, LogoMark, ProgressBar } from '@/components/ui'
 import { PricingSection } from '@/features/subscription/PricingSection'
@@ -59,7 +60,13 @@ const fadeUp = {
 export function LandingPage() {
   const health = useQuery({
     queryKey: ['health'],
-    queryFn: () => api<{ status: string }>('/api/health'),
+    // Attend que l'API réponde avant la première requête : au lancement du
+    // projet, le backend démarre après Vite et la pastille afficherait
+    // « API hors ligne » (et une erreur console) le temps qu'il soit prêt.
+    queryFn: async () => {
+      await waitForApiReady()
+      return api<{ status: string }>('/api/health')
+    },
   })
 
   return (
@@ -206,10 +213,16 @@ export function LandingPage() {
               className={
                 health.isSuccess
                   ? 'size-2 rounded-full bg-success'
-                  : 'size-2 rounded-full bg-danger'
+                  : health.isPending
+                    ? 'size-2 animate-pulse rounded-full bg-faint'
+                    : 'size-2 rounded-full bg-danger'
               }
             />
-            {health.isSuccess ? 'Tous les systèmes opérationnels' : 'API hors ligne'}
+            {health.isSuccess
+              ? 'Tous les systèmes opérationnels'
+              : health.isPending
+                ? 'Vérification des systèmes…'
+                : 'API hors ligne'}
             <span className="mx-1">·</span>© {new Date().getFullYear()} One Mission
           </p>
         </div>

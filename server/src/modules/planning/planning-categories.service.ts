@@ -40,23 +40,6 @@ const DEFAULT_CATEGORIES = [
   { name: 'Autre', icon: '🗂️' },
 ] as const
 
-/**
- * Correspondance entre l'ancien enum figé des Quêtes (QuestCategory) et le nom
- * d'une catégorie de Planning par défaut — utilisée uniquement par
- * quests.service.ts pour choisir une catégorie cohérente quand une quête est
- * créée avec un créneau Planning (« Ajouter au Planning »). Les deux systèmes
- * sont sinon totalement découplés.
- */
-export const QUEST_ENUM_TO_DEFAULT_CATEGORY_NAME: Record<string, string> = {
-  SPORT: 'Sport',
-  TRAVAIL: 'Travail',
-  ETUDES: 'Études',
-  SANTE: 'Santé',
-  PERSO: 'Personnel',
-  FINANCE: 'Business',
-  AUTRE: 'Autre',
-}
-
 export async function ensureDefaultCategories(userId: string): Promise<void> {
   const existing = await prisma.planningCategory.count({ where: { userId } })
   if (existing > 0) return

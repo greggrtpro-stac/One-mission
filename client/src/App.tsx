@@ -140,6 +140,25 @@ const router = createBrowserRouter([
                 }),
               },
               {
+                path: 'guilds',
+                lazy: async () => ({
+                  Component: (await import('@/features/guilds/GuildsPage')).GuildsPage,
+                }),
+              },
+              {
+                path: 'guilds/:guildId',
+                lazy: async () => ({
+                  Component: (await import('@/features/guilds/GuildProfilePage'))
+                    .GuildProfilePage,
+                }),
+              },
+              {
+                path: 'guilds/:guildId/stats',
+                lazy: async () => ({
+                  Component: (await import('@/features/guilds/GuildStatsPage')).GuildStatsPage,
+                }),
+              },
+              {
                 path: 'friends',
                 lazy: async () => ({
                   Component: (await import('@/features/friends/FriendsPage')).FriendsPage,

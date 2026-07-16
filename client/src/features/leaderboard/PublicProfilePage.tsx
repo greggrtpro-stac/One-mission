@@ -19,6 +19,7 @@ import { Link, useParams } from 'react-router-dom'
 import { leaderboardApi } from '@/api/stats'
 import { ApiRequestError } from '@/api/http'
 import { Avatar, Badge, Button, Card, ProgressBar, Spinner } from '@/components/ui'
+import { GuildChip } from '@/features/guilds/GuildIcon'
 import { buildXpLevelSeries, formatHours, formatXp } from '@/features/profile/format'
 import {
   AchievementGrid,
@@ -96,7 +97,7 @@ export function PublicProfilePage() {
     )
   }
 
-  const { user, stats } = query.data
+  const { user, stats, guild } = query.data
   const xpForNext = xpForLevel(user.level)
   const xpPercent = xpForNext > 0 ? (user.currentXp / xpForNext) * 100 : 0
   const memberSince = new Date(user.createdAt).toLocaleDateString('fr-FR', {
@@ -131,6 +132,7 @@ export function PublicProfilePage() {
               <Badge variant="neutral">
                 <CalendarDays size={11} /> Inscrit le {memberSince}
               </Badge>
+              {guild && <GuildChip guild={guild} role={guild.role} />}
             </div>
             <p className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-black text-accent">{user.level}</span>

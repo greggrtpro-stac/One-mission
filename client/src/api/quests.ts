@@ -1,4 +1,10 @@
-import type { MainQuestDto, QuestActionResult, QuestDto, XpResult } from '@one-mission/shared'
+import type {
+  MainQuestDto,
+  QuestActionResult,
+  QuestCategoryDto,
+  QuestDto,
+  XpResult,
+} from '@one-mission/shared'
 import { http } from './http'
 
 // ── Quêtes ───────────────────────────────────────────────────
@@ -6,7 +12,7 @@ import { http } from './http'
 export interface QuestPayload {
   title: string
   description?: string | null
-  category: string
+  categoryId: string
   priority: string
   difficulty: string
   dueDate: string
@@ -23,6 +29,30 @@ export const questsApi = {
   complete: (id: string) => http.post<QuestActionResult>(`/api/quests/${id}/complete`),
   uncomplete: (id: string) => http.post<QuestActionResult>(`/api/quests/${id}/uncomplete`),
   remove: (id: string) => http.delete<{ xp: XpResult | null }>(`/api/quests/${id}`),
+}
+
+// ── Catégories de quêtes ─────────────────────────────────────
+
+export interface QuestCategoryPayload {
+  name: string
+  color?: string
+  icon?: string | null
+}
+
+export type QuestCategoryDelete =
+  | { strategy: 'reassign'; targetCategoryId: string }
+  | { strategy: 'deleteQuests' }
+
+export const questCategoriesApi = {
+  list: () => http.get<{ categories: QuestCategoryDto[] }>('/api/quests/categories'),
+  create: (payload: QuestCategoryPayload) =>
+    http.post<{ category: QuestCategoryDto }>('/api/quests/categories', payload),
+  update: (id: string, payload: Partial<QuestCategoryPayload>) =>
+    http.patch<{ category: QuestCategoryDto }>(`/api/quests/categories/${id}`, payload),
+  reorder: (ids: string[]) => http.put<null>('/api/quests/categories/reorder', { ids }),
+  /** Supprimer des quêtes terminées reprend leur XP : le résultat peut porter un delta. */
+  remove: (id: string, payload: QuestCategoryDelete) =>
+    http.delete<{ xp: XpResult | null }>(`/api/quests/categories/${id}`, payload),
 }
 
 // ── Quête principale ─────────────────────────────────────────

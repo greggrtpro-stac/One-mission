@@ -1,16 +1,14 @@
 import {
-  CATEGORY_LABELS,
   DIFFICULTY_LABELS,
   PRIORITY_LABELS,
-  QUEST_CATEGORIES,
   DIFFICULTIES,
   PRIORITIES,
   XP_BY_DIFFICULTY,
   type QuestDto,
 } from '@one-mission/shared'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState, type FormEvent } from 'react'
-import { questsApi, type QuestPayload } from '@/api/quests'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { questCategoriesApi, questsApi, type QuestPayload } from '@/api/quests'
 import { Button, Input, Modal, Select, Textarea, Toggle } from '@/components/ui'
 import { fromInputs } from '@/features/planning/time'
 import { todayIso } from '@/lib/dates'
@@ -25,7 +23,7 @@ interface QuestFormModalProps {
 const emptyForm = (): QuestPayload => ({
   title: '',
   description: '',
-  category: 'AUTRE',
+  categoryId: '',
   priority: 'MEDIUM',
   difficulty: 'MEDIUM',
   dueDate: todayIso(),
@@ -40,6 +38,13 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
   const [planEnd, setPlanEnd] = useState('10:00')
   const [planError, setPlanError] = useState<string | null>(null)
 
+  const categoriesQuery = useQuery({
+    queryKey: ['quest-categories'],
+    queryFn: () => questCategoriesApi.list().then((r) => r.categories),
+    enabled: open,
+  })
+  const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data])
+
   useEffect(() => {
     if (!open) return
     setAddToPlanning(false)
@@ -51,7 +56,7 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
         ? {
             title: quest.title,
             description: quest.description ?? '',
-            category: quest.category,
+            categoryId: quest.category.id,
             priority: quest.priority,
             difficulty: quest.difficulty,
             dueDate: quest.dueDate,
@@ -60,6 +65,16 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
         : emptyForm(),
     )
   }, [open, quest])
+
+  // À la création, présélectionne la catégorie de repli dès que la liste arrive.
+  useEffect(() => {
+    if (!open || quest || categories.length === 0) return
+    setForm((f) => {
+      if (f.categoryId) return f
+      const fallback = categories.find((c) => c.isDefault) ?? categories[0]!
+      return { ...f, categoryId: fallback.id }
+    })
+  }, [open, quest, categories])
 
   const withPlanning = !quest && addToPlanning
 
@@ -80,6 +95,7 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['quests'] })
+      void queryClient.invalidateQueries({ queryKey: ['quest-categories'] })
       if (withPlanning) {
         void queryClient.invalidateQueries({ queryKey: ['planning'] })
         void queryClient.invalidateQueries({ queryKey: ['planning-stats'] })
@@ -124,12 +140,15 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
         <div className="grid grid-cols-2 gap-3">
           <Select
             label="Catégorie"
-            value={form.category}
-            onChange={(e) => set('category', e.target.value)}
+            required
+            value={form.categoryId}
+            onChange={(e) => set('categoryId', e.target.value)}
+            disabled={categoriesQuery.isLoading}
           >
-            {QUEST_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_LABELS[c]}
+            {categories.length === 0 && <option value="">Chargement…</option>}
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.icon} {c.name}
               </option>
             ))}
           </Select>
@@ -214,7 +233,7 @@ export function QuestFormModal({ open, onClose, quest }: QuestFormModalProps) {
           <Button type="button" variant="secondary" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="submit" loading={mutation.isPending}>
+          <Button type="submit" loading={mutation.isPending} disabled={!form.categoryId}>
             {quest ? 'Enregistrer' : 'Créer la quête'}
           </Button>
         </div>

@@ -117,6 +117,15 @@ leaderboardRouter.get('/:userId', async (req: Request, res: Response) => {
 
   const stats = await computeProfileStats(target)
 
+  // Guilde du joueur (badge + rôle) — donnée publique par nature.
+  const guildMembership = await prisma.guildMember.findUnique({
+    where: { userId: target.id },
+    select: {
+      role: true,
+      guild: { select: { id: true, name: true, icon: true, color: true } },
+    },
+  })
+
   // Statistiques d'addictions : uniquement si le joueur les a rendues publiques.
   const targetPrefs: FriendPrefs = {
     ...DEFAULT_FRIEND_PREFS,
@@ -153,6 +162,15 @@ leaderboardRouter.get('/:userId', async (req: Request, res: Response) => {
       days: stats.days,
       weeks: stats.weeks,
     },
+    guild: guildMembership
+      ? {
+          id: guildMembership.guild.id,
+          name: guildMembership.guild.name,
+          icon: guildMembership.guild.icon,
+          color: guildMembership.guild.color,
+          role: guildMembership.role,
+        }
+      : null,
   }
   res.json(response)
 })

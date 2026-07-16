@@ -1,24 +1,33 @@
 /** Constantes métier des quêtes, partagées client/serveur. */
 
-export const QUEST_CATEGORIES = [
-  'SPORT',
-  'TRAVAIL',
-  'ETUDES',
-  'SANTE',
-  'PERSO',
-  'FINANCE',
-  'AUTRE',
-] as const
-export type QuestCategory = (typeof QUEST_CATEGORIES)[number]
+/**
+ * Couleur présélectionnée à la création d'une catégorie de quêtes : le violet
+ * de One Mission (l'utilisateur reste libre d'en choisir une autre). À ne pas
+ * confondre avec la palette de choix rapide AUTO_CATEGORY_COLORS, partagée
+ * avec le Planning.
+ */
+export const DEFAULT_QUEST_CATEGORY_COLOR = '#8B5CF6'
 
-export const CATEGORY_LABELS: Record<QuestCategory, string> = {
-  SPORT: 'Sport',
-  TRAVAIL: 'Travail',
-  ETUDES: 'Études',
-  SANTE: 'Santé',
-  PERSO: 'Personnel',
-  FINANCE: 'Finance',
-  AUTRE: 'Autre',
+/** Catégorie de quête telle qu'embarquée dans une quête (couleur/icône incluses). */
+export interface QuestCategoryRef {
+  id: string
+  name: string
+  /** Couleur hex "#RRGGBB". */
+  color: string
+  /** Emoji, jamais vide (📁 par défaut). */
+  icon: string
+}
+
+/** Catégorie de quêtes personnalisée d'un utilisateur (gestionnaire de catégories). */
+export interface QuestCategoryDto {
+  id: string
+  name: string
+  color: string
+  /** Emoji, jamais vide (📁 par défaut). */
+  icon: string
+  sortOrder: number
+  isDefault: boolean
+  questsCount: number
 }
 
 export const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const
