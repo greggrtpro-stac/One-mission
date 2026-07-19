@@ -1,7 +1,5 @@
 User-agent: *
 Allow: /
-# L'application (espace connecté) n'a pas vocation à être indexée.
 Disallow: /app
 
-# À activer une fois le domaine définitif connu :
-# Sitemap: https://votre-domaine.fr/sitemap.xml
+Sitemap: https://one-mission.fr/sitemap.xml
