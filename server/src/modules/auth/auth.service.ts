@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library'
 import { env } from '../../config/env.js'
 import type { User } from '../../generated/prisma/client.js'
 import { signAccessToken } from '../../lib/jwt.js'
+import { log } from '../../lib/log.js'
 import { sendPasswordResetEmail } from '../../lib/mailer.js'
 import { hashPassword, verifyPassword } from '../../lib/passwords.js'
 import { prisma } from '../../lib/prisma.js'
@@ -244,11 +245,12 @@ export async function googleAuth(credential: string): Promise<User> {
 
 export async function requestPasswordReset(email: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-  // Choix produit assumé : on indique clairement qu'aucun compte n'existe.
-  // L'énumération que cela permet est déjà possible via l'inscription
-  // (EMAIL_TAKEN) ; la route reste protégée par Turnstile + rate limit (5/h).
+  // Réponse identique que le compte existe ou non : pas d'énumération.
+  // Seuls les logs serveur distinguent les deux cas (sans l'adresse saisie —
+  // pas de donnée personnelle dans les logs).
   if (!user) {
-    throw new ApiError(404, 'Aucun compte n’est associé à cette adresse e-mail.', 'EMAIL_NOT_FOUND')
+    log('info', 'auth.forgotPassword.unknownEmail', {})
+    return
   }
 
   const token = generateToken()
@@ -269,6 +271,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
   const resetUrl = `${env.CLIENT_URL}/reset-password?token=${token}`
   await sendPasswordResetEmail(user.email, resetUrl)
+  log('info', 'auth.forgotPassword.sent', { userId: user.id })
 }
 
 export async function resetPassword(rawToken: string, newPassword: string): Promise<void> {

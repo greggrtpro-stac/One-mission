@@ -1,14 +1,24 @@
 import { useMutation } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useCallback, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { login } from '@/api/auth'
 import { ApiRequestError } from '@/api/http'
-import { Button, Input, PasswordInput } from '@/components/ui'
+import { Button, FieldError, Input, PasswordInput } from '@/components/ui'
 import { AuthLayout } from './AuthLayout'
+import {
+  apiErrorToFieldErrors,
+  emailFieldError,
+  focusFirstError,
+  hasFieldErrors,
+  type AuthField,
+  type FieldErrors,
+} from './formErrors'
 import { GoogleButton } from './GoogleButton'
 import { PrivacyNotice } from './PrivacyNotice'
 import { ResendVerificationForm } from './ResendVerificationForm'
 import { TurnstileWidget } from './TurnstileWidget'
+
+const FIELD_ORDER: AuthField[] = ['email', 'password', 'captcha']
 
 function errorCode(error: unknown): string | undefined {
   if (!(error instanceof ApiRequestError)) return undefined
@@ -19,22 +29,54 @@ export function LoginPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [localError, setLocalError] = useState<string | null>(null)
-  const [googleError, setGoogleError] = useState<string | null>(null)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [generalError, setGeneralError] = useState<string | null>(null)
+  const [googleError, setGoogleError] = useState<string | null>(null)
+
+  const fieldRefs = useRef<Partial<Record<AuthField, HTMLElement | null>>>({})
+
+  /** Validation temps réel : l'erreur d'un champ disparaît dès qu'il redevient valide. */
+  const clearFieldError = useCallback((field: AuthField) => {
+    setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev))
+  }, [])
 
   const mutation = useMutation({
     mutationFn: () => login(email, password, turnstileToken ?? ''),
     onSuccess: () => navigate('/app'),
+    onError: (err) => {
+      // Compte non vérifié : l'encart dédié (renvoi d'e-mail) suffit, pas
+      // d'erreur générale en doublon.
+      if (errorCode(err) === 'EMAIL_NOT_VERIFIED') return
+      const { fields, general } = apiErrorToFieldErrors(err)
+      setFieldErrors(fields)
+      setGeneralError(general)
+      focusFirstError(fields, FIELD_ORDER, fieldRefs.current)
+    },
   })
 
   const needsVerification = errorCode(mutation.error) === 'EMAIL_NOT_VERIFIED'
 
+  // Stable : TurnstileWidget re-rend son défi quand ce callback change.
+  const handleTurnstileVerify = useCallback(
+    (token: string | null) => {
+      setTurnstileToken(token)
+      if (token !== null) clearFieldError('captcha')
+    },
+    [clearFieldError],
+  )
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setLocalError(null)
-    if (turnstileToken === null) {
-      setLocalError('Veuillez compléter le captcha.')
+    setGeneralError(null)
+    const errors: FieldErrors = {
+      email: emailFieldError(email) ?? undefined,
+      password: password ? undefined : 'Le mot de passe est requis.',
+      captcha: turnstileToken === null ? 'Veuillez compléter le captcha.' : undefined,
+    }
+    setFieldErrors(errors)
+    if (hasFieldErrors(errors)) {
+      focusFirstError(errors, FIELD_ORDER, fieldRefs.current)
       return
     }
     mutation.mutate()
@@ -52,24 +94,39 @@ export function LoginPage() {
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* noValidate : les messages d'erreur stylés remplacent les bulles natives. */}
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Input
+          ref={(el) => {
+            fieldRefs.current.email = el
+          }}
           label="Adresse e-mail"
           type="email"
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value)
+            if (emailFieldError(e.target.value) === null) clearFieldError('email')
+          }}
           placeholder="toi@exemple.fr"
+          error={fieldErrors.email}
         />
         <div>
           <PasswordInput
+            ref={(el) => {
+              fieldRefs.current.password = el
+            }}
             label="Mot de passe"
             autoComplete="current-password"
             required
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value)
+              if (e.target.value) clearFieldError('password')
+            }}
             placeholder="••••••••"
+            error={fieldErrors.password}
           />
           <div className="mt-1.5 text-right">
             <Link to="/forgot-password" className="text-xs text-muted hover:text-accent">
@@ -78,23 +135,23 @@ export function LoginPage() {
           </div>
         </div>
 
-        <TurnstileWidget onVerify={setTurnstileToken} />
+        <div
+          ref={(el) => {
+            fieldRefs.current.captcha = el
+          }}
+          className="flex flex-col gap-1.5"
+        >
+          <TurnstileWidget onVerify={handleTurnstileVerify} />
+          {fieldErrors.captcha && <FieldError>{fieldErrors.captcha}</FieldError>}
+        </div>
 
-        {(localError || (mutation.error && !needsVerification) || googleError) && (
-          <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
-            {localError ??
-              googleError ??
-              (mutation.error instanceof Error ? mutation.error.message : 'Une erreur est survenue.')}
+        {(generalError || googleError) && (
+          <p className="animate-error-in rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
+            {generalError ?? googleError}
           </p>
         )}
 
-        <Button
-          type="submit"
-          size="lg"
-          loading={mutation.isPending}
-          disabled={turnstileToken === null}
-          className="w-full"
-        >
+        <Button type="submit" size="lg" loading={mutation.isPending} className="w-full">
           Se connecter
         </Button>
 

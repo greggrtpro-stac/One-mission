@@ -1,8 +1,9 @@
-import type { InputHTMLAttributes, ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import { useId } from 'react'
 import { cn } from '@/lib/cn'
+import { FieldError } from './FieldError'
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends ComponentProps<'input'> {
   label?: string
   error?: string
   hint?: ReactNode
@@ -25,13 +26,16 @@ export function Input({ label, error, hint, trailing, className, id, ...props }:
           id={inputId}
           className={cn(
             'h-10 w-full rounded-xl border bg-surface-2 px-3.5 text-sm text-ink',
-            'placeholder:text-faint transition-colors duration-150',
+            'placeholder:text-faint transition-[color,border-color,box-shadow] duration-150',
             'focus:outline-none focus:ring-2 focus:ring-accent/60 focus:border-transparent',
-            error ? 'border-danger' : 'border-line',
+            error
+              ? 'border-danger shadow-[0_0_0_3px_var(--danger-soft)] focus:ring-danger/50'
+              : 'border-line',
             trailing && 'pr-10',
             className,
           )}
           aria-invalid={!!error}
+          aria-describedby={error ? `${inputId}-error` : undefined}
           {...props}
         />
         {trailing && (
@@ -39,7 +43,10 @@ export function Input({ label, error, hint, trailing, className, id, ...props }:
         )}
       </div>
       {error ? (
-        <p className="text-xs text-danger">{error}</p>
+        // key : ré-anime le message quand l'erreur change alors qu'une autre était déjà affichée.
+        <FieldError key={error} id={`${inputId}-error`}>
+          {error}
+        </FieldError>
       ) : hint ? (
         <p className="text-xs text-faint">{hint}</p>
       ) : null}

@@ -264,10 +264,12 @@ authRouter.post(
   validateBody(forgotPasswordSchema),
   requireTurnstile(),
   async (req: Request, res: Response) => {
-    // Un compte inconnu répond 404 (voir requestPasswordReset pour le choix
-    // produit assumé côté énumération).
     await auth.requestPasswordReset(req.body.email)
-    res.json({ message: 'Un e-mail de réinitialisation a été envoyé.' })
+    // Réponse identique que le compte existe ou non : pas d'énumération.
+    res.json({
+      message:
+        'Si cette adresse e-mail est associée à un compte, un e-mail de réinitialisation a été envoyé.',
+    })
   },
 )
 
