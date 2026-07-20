@@ -44,7 +44,7 @@ export function Button({
       transition={{ duration: 0.1 }}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center font-medium select-none',
+        'inline-flex items-center justify-center font-medium whitespace-nowrap select-none',
         'transition-colors duration-150 cursor-pointer',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         'disabled:opacity-50 disabled:pointer-events-none',

@@ -70,7 +70,7 @@ export function LandingPage() {
   })
 
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-bg text-ink">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-bg text-ink">
       {/* Halo violet d’arrière-plan */}
       <div
         aria-hidden
@@ -78,18 +78,31 @@ export function LandingPage() {
         style={{ background: 'radial-gradient(closest-side, var(--accent), transparent)' }}
       />
 
-      {/* ── Navigation ── */}
-      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Logo size={30} />
-        <nav className="flex items-center gap-2">
+      {/* ── Navigation ──
+          Tailles compactes ci-dessous : tient sur une seule ligne à partir
+          d'environ 400 px de large (iPhone Pro Max, la plupart des tablettes
+          en portrait…). flex-wrap sur le header ET la nav reste un filet de
+          sécurité en dessous (Android 360-393 px, iPhone SE/13/14/15) : la
+          nav passe alors sous le logo — qui reste à gauche — plutôt que de
+          déborder ou de couper le texte des boutons. */}
+      <header className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-2 gap-y-2 px-3 py-4 md:flex-nowrap md:px-6 md:py-5">
+        <Logo size={30} className="shrink-0" />
+        <nav className="flex flex-wrap items-center justify-end gap-1 md:flex-nowrap md:gap-2">
           <a href="#pricing" className="mr-2 hidden text-sm font-medium text-muted hover:text-ink sm:inline">
             Tarifs
           </a>
           <Link to="/login">
-            <Button variant="ghost">Se connecter</Button>
+            <Button
+              variant="ghost"
+              className="max-md:h-8 max-md:gap-1.5 max-md:rounded-lg max-md:px-2.5 max-md:text-[13px]"
+            >
+              Se connecter
+            </Button>
           </Link>
           <Link to="/register">
-            <Button>Commencer</Button>
+            <Button className="max-md:h-8 max-md:gap-1.5 max-md:rounded-lg max-md:px-2.5 max-md:text-[13px]">
+              Commencer
+            </Button>
           </Link>
         </nav>
       </header>
