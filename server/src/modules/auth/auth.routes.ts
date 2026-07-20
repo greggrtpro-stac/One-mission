@@ -153,7 +153,7 @@ authRouter.post(
       res.setHeader('Retry-After', String(blockedFor))
       throw new ApiError(
         429,
-        `Trop de tentatives échouées. Réessaie dans ${Math.max(1, Math.ceil(blockedFor / 60))} min.`,
+        `Votre compte est temporairement bloqué. Réessayez dans ${Math.max(1, Math.ceil(blockedFor / 60))} min.`,
         'TOO_MANY_ATTEMPTS',
       )
     }
@@ -266,7 +266,10 @@ authRouter.post(
   async (req: Request, res: Response) => {
     await auth.requestPasswordReset(req.body.email)
     // Réponse identique que le compte existe ou non : pas d'énumération.
-    res.json({ message: 'Si un compte existe avec cet e-mail, un lien a été envoyé.' })
+    res.json({
+      message:
+        'Si cette adresse e-mail est associée à un compte, un e-mail de réinitialisation a été envoyé.',
+    })
   },
 )
 

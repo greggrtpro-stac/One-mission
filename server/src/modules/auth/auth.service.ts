@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library'
 import { env } from '../../config/env.js'
 import type { User } from '../../generated/prisma/client.js'
 import { signAccessToken } from '../../lib/jwt.js'
+import { log } from '../../lib/log.js'
 import { sendPasswordResetEmail } from '../../lib/mailer.js'
 import { hashPassword, verifyPassword } from '../../lib/passwords.js'
 import { prisma } from '../../lib/prisma.js'
@@ -126,8 +127,8 @@ export async function register(input: RegisterInput): Promise<User> {
     prisma.user.findUnique({ where: { email } }),
     prisma.user.findUnique({ where: { username: input.username } }),
   ])
-  if (emailTaken) throw new ApiError(409, 'Un compte existe déjà avec cet e-mail', 'EMAIL_TAKEN')
-  if (usernameTaken) throw new ApiError(409, 'Ce pseudo est déjà pris', 'USERNAME_TAKEN')
+  if (emailTaken) throw new ApiError(409, 'Cette adresse e-mail est déjà utilisée.', 'EMAIL_TAKEN')
+  if (usernameTaken) throw new ApiError(409, 'Ce pseudo est déjà utilisé.', 'USERNAME_TAKEN')
 
   const passwordHash = await hashPassword(input.password)
   const user = await prisma.user.create({
@@ -149,7 +150,7 @@ export async function register(input: RegisterInput): Promise<User> {
 export async function login(input: LoginInput): Promise<User> {
   const user = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } })
   // Message identique dans tous les cas d'échec : pas d'énumération de comptes.
-  const invalid = new ApiError(401, 'E-mail ou mot de passe incorrect', 'INVALID_CREDENTIALS')
+  const invalid = new ApiError(401, 'Adresse e-mail ou mot de passe incorrect.', 'INVALID_CREDENTIALS')
 
   if (!user) throw invalid
   if (!user.passwordHash) {
@@ -162,7 +163,11 @@ export async function login(input: LoginInput): Promise<User> {
   // de le prouver) apprend que l'e-mail n'est pas confirmé — aucune énumération
   // possible pour qui n'a pas le bon mot de passe.
   if (!user.emailVerifiedAt) {
-    throw new ApiError(403, 'Vérifie ton adresse e-mail avant de te connecter.', 'EMAIL_NOT_VERIFIED')
+    throw new ApiError(
+      403,
+      'Vous devez confirmer votre adresse e-mail avant de vous connecter.',
+      'EMAIL_NOT_VERIFIED',
+    )
   }
   return user
 }
@@ -240,8 +245,13 @@ export async function googleAuth(credential: string): Promise<User> {
 
 export async function requestPasswordReset(email: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-  // Réponse identique que le compte existe ou non (pas d'énumération).
-  if (!user) return
+  // Réponse identique que le compte existe ou non : pas d'énumération.
+  // Seuls les logs serveur distinguent les deux cas (sans l'adresse saisie —
+  // pas de donnée personnelle dans les logs).
+  if (!user) {
+    log('info', 'auth.forgotPassword.unknownEmail', {})
+    return
+  }
 
   const token = generateToken()
   await prisma.$transaction([
@@ -261,14 +271,21 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
   const resetUrl = `${env.CLIENT_URL}/reset-password?token=${token}`
   await sendPasswordResetEmail(user.email, resetUrl)
+  log('info', 'auth.forgotPassword.sent', { userId: user.id })
 }
 
 export async function resetPassword(rawToken: string, newPassword: string): Promise<void> {
   const record = await prisma.passwordResetToken.findUnique({
     where: { tokenHash: hashToken(rawToken) },
   })
-  if (!record || record.usedAt || record.expiresAt < new Date()) {
-    throw new ApiError(400, 'Lien invalide ou expiré, refais une demande', 'INVALID_RESET_TOKEN')
+  // Lien inconnu (falsifié ou déjà remplacé) ≠ lien expiré / déjà utilisé :
+  // deux messages distincts pour que l'utilisateur sache s'il doit simplement
+  // refaire une demande ou vérifier qu'il a bien ouvert le dernier e-mail reçu.
+  if (!record) {
+    throw new ApiError(400, 'Le lien est invalide.', 'INVALID_RESET_TOKEN')
+  }
+  if (record.usedAt || record.expiresAt < new Date()) {
+    throw new ApiError(400, 'Le lien est expiré.', 'EXPIRED_RESET_TOKEN')
   }
 
   const passwordHash = await hashPassword(newPassword)

@@ -15,6 +15,22 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * Message affichable à l'utilisateur : celui de l'API (`error`, ou `message`
+ * pour les réponses qui utilisent cette clé), sinon un repli français selon
+ * le code HTTP — jamais de « Erreur 500 » brut ni de détail technique.
+ */
+function extractErrorMessage(body: unknown, status: number): string {
+  if (body && typeof body === 'object') {
+    const { error, message } = body as { error?: unknown; message?: unknown }
+    if (typeof error === 'string' && error) return error
+    if (typeof message === 'string' && message) return message
+  }
+  if (status === 429) return 'Trop de tentatives. Veuillez réessayer plus tard.'
+  if (status >= 500) return 'Une erreur est survenue. Veuillez réessayer plus tard.'
+  return 'Une erreur est survenue.'
+}
+
 let refreshPromise: Promise<string | null> | null = null
 
 /** Une seule requête de refresh à la fois, partagée entre les appels concurrents. */
@@ -64,11 +80,7 @@ async function request<T>(path: string, init: RequestInit, allowRetry: boolean):
   const body = res.status === 204 ? null : await res.json().catch(() => null)
 
   if (!res.ok) {
-    const message =
-      body && typeof body === 'object' && 'error' in body
-        ? String((body as { error: unknown }).error)
-        : `Erreur ${res.status}`
-    throw new ApiRequestError(res.status, message, body)
+    throw new ApiRequestError(res.status, extractErrorMessage(body, res.status), body)
   }
 
   return body as T

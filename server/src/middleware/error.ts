@@ -48,9 +48,15 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return
   }
   if (err instanceof ZodError) {
+    // Le message de la première règle violée est renvoyé tel quel : le client
+    // affiche ainsi la vraie cause (« Le mot de passe doit contenir une
+    // majuscule. »…) au lieu d'un « Données invalides » générique. La liste
+    // complète reste disponible dans `details` pour un affichage par champ.
+    const issues = err.issues.map((i) => ({ field: i.path.join('.'), message: i.message }))
     res.status(400).json({
-      error: 'Données invalides',
-      details: err.issues.map((i) => ({ field: i.path.join('.'), message: i.message })),
+      error: issues[0]?.message ?? 'Une erreur est survenue. Veuillez réessayer plus tard.',
+      code: 'VALIDATION_ERROR',
+      details: issues,
     })
     return
   }
@@ -61,6 +67,8 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   }
   logServerError(req, err, 500)
   res.status(500).json({
-    error: isProd ? 'Erreur interne du serveur' : String(err instanceof Error ? err.message : err),
+    error: isProd
+      ? 'Une erreur est survenue. Veuillez réessayer plus tard.'
+      : String(err instanceof Error ? err.message : err),
   })
 }
