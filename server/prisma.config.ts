@@ -1,13 +1,12 @@
 import path from 'node:path'
-import { loadEnvFile } from 'node:process'
+import { config as loadEnv } from 'dotenv'
 import { defineConfig } from 'prisma/config'
 
 // Le .env vit à la racine du monorepo ; il peut être absent (CI, premier clone).
-try {
-  loadEnvFile(path.join(import.meta.dirname, '../.env'))
-} catch {
-  /* variables déjà présentes dans l'environnement */
-}
+// dotenv (plutôt que process.loadEnvFile, indisponible sur certaines versions
+// de Node malgré engines >=20.19 — constaté en prod) : ne lève jamais si le
+// fichier est absent, et n'écrase pas les variables déjà présentes.
+loadEnv({ path: path.join(import.meta.dirname, '../.env'), quiet: true })
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
