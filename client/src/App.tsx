@@ -4,7 +4,7 @@ import { bootstrapSession } from '@/api/auth'
 import { BetaBanner } from '@/components/BetaBanner'
 import { CookieBanner } from '@/components/CookieBanner'
 import { AppShell } from '@/components/layout/AppShell'
-import { AuthPages, RequireAuth } from '@/components/layout/guards'
+import { AuthPages, HomeGate, RequireAuth } from '@/components/layout/guards'
 import { RouteErrorPage } from '@/components/layout/RouteErrorPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
@@ -32,7 +32,14 @@ const router = createBrowserRouter([
     // affiche cette page au lieu de l'écran gris par défaut de React Router.
     errorElement: <RouteErrorPage />,
     children: [
-      { path: '/', element: <LandingPage /> },
+      {
+        path: '/',
+        element: (
+          <HomeGate>
+            <LandingPage />
+          </HomeGate>
+        ),
+      },
       // Pages juridiques — publiques, accessibles connecté ou non.
       {
         path: '/mentions-legales',

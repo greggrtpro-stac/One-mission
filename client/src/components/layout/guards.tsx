@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { SplashScreen } from './SplashScreen'
@@ -23,4 +24,18 @@ export function AuthPages() {
   const status = useAuthStore((s) => s.status)
   if (status === 'loading') return <SplashScreen />
   return <Outlet />
+}
+
+/**
+ * Racine du site (landing page) : reste publique et s'affiche immédiatement,
+ * sans attendre le résultat du bootstrap (marketing/SEO — un visiteur non
+ * connecté ne doit jamais voir d'écran de chargement à la place). Dès que le
+ * cookie de session est vérifié et qu'il s'avère valide, l'utilisateur est
+ * redirigé vers son tableau de bord au lieu de rester sur la landing — le
+ * comportement attendu d'un SaaS classique (Notion, Discord, Gmail…).
+ */
+export function HomeGate({ children }: { children: ReactNode }) {
+  const status = useAuthStore((s) => s.status)
+  if (status === 'authed') return <Navigate to="/app" replace />
+  return <>{children}</>
 }
