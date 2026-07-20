@@ -79,14 +79,20 @@ export function LandingPage() {
       />
 
       {/* ── Navigation ──
-          Tailles compactes ci-dessous : tient sur une seule ligne à partir
-          d'environ 400 px de large (iPhone Pro Max, la plupart des tablettes
-          en portrait…). flex-wrap sur le header ET la nav reste un filet de
-          sécurité en dessous (Android 360-393 px, iPhone SE/13/14/15) : la
-          nav passe alors sous le logo — qui reste à gauche — plutôt que de
-          déborder ou de couper le texte des boutons. */}
+          Logo légèrement réduit sous 768px (deux instances, une par
+          breakpoint — la taille du logo se pilote par prop JS, pas par
+          classe CSS) : tient désormais sur une seule ligne à toutes les
+          largeurs mobiles courantes (dès 360 px). flex-wrap sur le header
+          ET la nav reste un filet de sécurité pour les cas extrêmes (zoom
+          navigateur, texte agrandi par accessibilité…) : la nav passerait
+          alors sous le logo — qui reste à gauche — plutôt que de déborder. */}
       <header className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-2 gap-y-2 px-3 py-4 md:flex-nowrap md:px-6 md:py-5">
-        <Logo size={30} className="shrink-0" />
+        <span className="md:hidden">
+          <Logo size={22} className="shrink-0" />
+        </span>
+        <span className="hidden shrink-0 md:inline-flex">
+          <Logo size={30} />
+        </span>
         <nav className="flex flex-wrap items-center justify-end gap-1 max-md:ml-auto md:flex-nowrap md:gap-2">
           <a href="#pricing" className="mr-2 hidden text-sm font-medium text-muted hover:text-ink sm:inline">
             Tarifs
