@@ -28,8 +28,8 @@ export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .pipe(z.email('Adresse e-mail invalide'))
-  .pipe(z.string().max(254, 'Adresse e-mail trop longue'))
+  .pipe(z.email('Votre adresse e-mail n’est pas valide.'))
+  .pipe(z.string().max(254, 'Votre adresse e-mail n’est pas valide.'))
 
 /**
  * Politique de mot de passe (nouveaux mots de passe uniquement — la
@@ -38,18 +38,27 @@ export const emailSchema = z
  */
 export const passwordSchema = z
   .string()
-  .min(PASSWORD_MIN_LENGTH, `Le mot de passe doit faire au moins ${PASSWORD_MIN_LENGTH} caractères`)
-  .max(PASSWORD_MAX_LENGTH, 'Mot de passe trop long')
+  .min(
+    PASSWORD_MIN_LENGTH,
+    `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`,
+  )
+  .max(PASSWORD_MAX_LENGTH, 'Le mot de passe est trop long.')
   .superRefine((pwd, ctx) => {
     const c = passwordCriteria(pwd)
-    if (!c.uppercase) ctx.addIssue({ code: 'custom', message: 'Il manque une lettre majuscule' })
-    if (!c.lowercase) ctx.addIssue({ code: 'custom', message: 'Il manque une lettre minuscule' })
-    if (!c.digit) ctx.addIssue({ code: 'custom', message: 'Il manque un chiffre' })
+    if (!c.uppercase) {
+      ctx.addIssue({ code: 'custom', message: 'Le mot de passe doit contenir une majuscule.' })
+    }
+    if (!c.lowercase) {
+      ctx.addIssue({ code: 'custom', message: 'Le mot de passe doit contenir une minuscule.' })
+    }
+    if (!c.digit) {
+      ctx.addIssue({ code: 'custom', message: 'Le mot de passe doit contenir un chiffre.' })
+    }
     if (!c.special) {
-      ctx.addIssue({ code: 'custom', message: 'Il manque un caractère spécial (!@#$%…)' })
+      ctx.addIssue({ code: 'custom', message: 'Le mot de passe doit contenir un caractère spécial.' })
     }
     if (isCommonPassword(pwd)) {
-      ctx.addIssue({ code: 'custom', message: 'Ce mot de passe est trop courant, choisis-en un plus original' })
+      ctx.addIssue({ code: 'custom', message: 'Ce mot de passe est trop courant, choisissez-en un plus original.' })
     }
   })
 

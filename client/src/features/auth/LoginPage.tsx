@@ -34,7 +34,7 @@ export function LoginPage() {
     e.preventDefault()
     setLocalError(null)
     if (turnstileToken === null) {
-      setLocalError('Vérification anti-robot en cours, réessaie dans un instant.')
+      setLocalError('Veuillez compléter le captcha.')
       return
     }
     mutation.mutate()
@@ -84,7 +84,7 @@ export function LoginPage() {
           <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
             {localError ??
               googleError ??
-              (mutation.error instanceof Error ? mutation.error.message : 'Erreur')}
+              (mutation.error instanceof Error ? mutation.error.message : 'Une erreur est survenue.')}
           </p>
         )}
 
@@ -104,7 +104,9 @@ export function LoginPage() {
       {/* Compte pas encore vérifié : renvoi de l'e-mail directement depuis l'écran de connexion. */}
       {needsVerification && (
         <div className="mt-5 rounded-2xl border border-line bg-surface-2 p-4">
-          <p className="text-sm font-medium">Ton adresse e-mail n'est pas encore vérifiée.</p>
+          <p className="text-sm font-medium">
+            Vous devez confirmer votre adresse e-mail avant de vous connecter.
+          </p>
           <p className="mt-1 text-xs text-muted">
             Vérifie ta boîte de réception, ou demande un nouveau lien ci-dessous.
           </p>

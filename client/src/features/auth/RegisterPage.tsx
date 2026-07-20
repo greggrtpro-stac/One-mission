@@ -87,11 +87,17 @@ export function RegisterPage() {
       return
     }
     if (password !== confirm) {
-      setLocalError('Les deux mots de passe ne correspondent pas.')
+      setLocalError('Les mots de passe ne correspondent pas.')
+      return
+    }
+    // Doublé avec `required` sur la case : le message reste explicite même si
+    // la validation native du navigateur est contournée.
+    if (!privacyAccepted) {
+      setLocalError('Vous devez accepter la politique de confidentialité.')
       return
     }
     if (turnstileToken === null) {
-      setLocalError('Vérification anti-robot en cours, réessaie dans un instant.')
+      setLocalError('Veuillez compléter le captcha.')
       return
     }
     mutation.mutate()
@@ -157,7 +163,7 @@ export function RegisterPage() {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           placeholder="••••••••••••"
-          error={mismatch ? 'Les deux mots de passe ne correspondent pas' : undefined}
+          error={mismatch ? 'Les mots de passe ne correspondent pas.' : undefined}
         />
 
         <label className="flex items-start gap-2.5 text-sm text-muted">
@@ -187,7 +193,9 @@ export function RegisterPage() {
           <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
             {localError ??
               googleError ??
-              (mutation.error instanceof Error ? mutation.error.message : 'Erreur')}
+              (mutation.error instanceof Error
+                ? mutation.error.message
+                : 'Une erreur est survenue. Veuillez réessayer plus tard.')}
           </p>
         )}
 

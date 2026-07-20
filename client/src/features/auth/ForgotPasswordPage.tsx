@@ -20,7 +20,7 @@ export function ForgotPasswordPage() {
     e.preventDefault()
     setLocalError(null)
     if (turnstileToken === null) {
-      setLocalError('Vérification anti-robot en cours, réessaie dans un instant.')
+      setLocalError('Veuillez compléter le captcha.')
       return
     }
     mutation.mutate()
@@ -49,7 +49,10 @@ export function ForgotPasswordPage() {
           <TurnstileWidget onVerify={setTurnstileToken} />
           {(localError || mutation.error) && (
             <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
-              {localError ?? (mutation.error instanceof Error ? mutation.error.message : 'Erreur')}
+              {localError ??
+                (mutation.error instanceof Error
+                  ? mutation.error.message
+                  : 'Une erreur est survenue.')}
             </p>
           )}
           <Button

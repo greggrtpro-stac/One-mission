@@ -24,7 +24,7 @@ export function ResetPasswordPage() {
       return
     }
     if (password !== confirm) {
-      setLocalError('Les deux mots de passe ne correspondent pas')
+      setLocalError('Les mots de passe ne correspondent pas.')
       return
     }
     mutation.mutate()
@@ -78,14 +78,16 @@ export function ResetPasswordPage() {
             placeholder="••••••••••••"
             error={
               confirm.length > 0 && password !== confirm
-                ? 'Les deux mots de passe ne correspondent pas'
+                ? 'Les mots de passe ne correspondent pas.'
                 : undefined
             }
           />
           {(localError || mutation.error) && (
             <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
               {localError ??
-                (mutation.error instanceof Error ? mutation.error.message : 'Erreur')}
+                (mutation.error instanceof Error
+                  ? mutation.error.message
+                  : 'Une erreur est survenue.')}
             </p>
           )}
           <Button type="submit" size="lg" loading={mutation.isPending} className="w-full">
