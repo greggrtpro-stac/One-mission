@@ -32,12 +32,21 @@ import { resendVerification, verifyEmail } from './verification.service.js'
 
 export const REFRESH_COOKIE = 'om_refresh'
 
-export const refreshCookieOptions = {
+/** Attributs communs, sans durée — suffisant pour cibler le cookie à la suppression (clearCookie). */
+export const baseCookieOptions = {
   httpOnly: true,
   sameSite: 'lax' as const,
   secure: isProd,
   path: '/api/auth',
-  maxAge: 30 * 24 * 60 * 60 * 1000,
+}
+
+/**
+ * « Rester connecté » coché : cookie persistant (Max-Age, survit à la
+ * fermeture du navigateur). Décoché : cookie de session (pas de Max-Age /
+ * Expires — le navigateur le supprime à la fermeture).
+ */
+export function refreshCookieOptions(rememberMe: boolean) {
+  return rememberMe ? { ...baseCookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 } : baseCookieOptions
 }
 
 /** Métadonnées d'appareil attachées à la session (écran « Appareils connectés »). */
@@ -45,7 +54,14 @@ function sessionMeta(req: Request): auth.SessionMeta {
   return { userAgent: req.get('user-agent') ?? null, ip: req.ip ?? null }
 }
 
-async function sendSession(req: Request, res: Response, userId: string, user: Awaited<ReturnType<typeof auth.login>>, status = 200) {
+async function sendSession(
+  req: Request,
+  res: Response,
+  userId: string,
+  user: Awaited<ReturnType<typeof auth.login>>,
+  rememberMe: boolean,
+  status = 200,
+) {
   // Connexion alors qu'une session existe déjà dans ce navigateur (changement
   // de compte sans déconnexion préalable) : l'ancienne session est révoquée,
   // sinon elle resterait active en base — fantôme dans « Appareils connectés »
@@ -53,10 +69,10 @@ async function sendSession(req: Request, res: Response, userId: string, user: Aw
   const previous = req.cookies?.[REFRESH_COOKIE] as string | undefined
   if (previous) await auth.revokeRefreshToken(previous)
 
-  const refreshToken = await auth.issueRefreshToken(userId, sessionMeta(req))
+  const refreshToken = await auth.issueRefreshToken(userId, sessionMeta(req), rememberMe)
   res
     .status(status)
-    .cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions)
+    .cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(rememberMe))
     .json({ user: toPublicUser(user), accessToken: signAccessToken(userId) })
 }
 
@@ -166,7 +182,7 @@ authRouter.post(
       const user = await auth.login(req.body)
       recordSuccess(ip)
       log('info', 'auth.login', { userId: user.id })
-      await sendSession(req, res, user.id, user)
+      await sendSession(req, res, user.id, user, req.body.rememberMe === true)
     } catch (err) {
       // Signal de sécurité : les échecs de connexion sont journalisés (sans
       // l'identifiant saisi — pas de donnée personnelle dans les logs).
@@ -183,7 +199,7 @@ authRouter.post(
 
 authRouter.post('/google', validateBody(googleAuthSchema), async (req: Request, res: Response) => {
   const user = await auth.googleAuth(req.body.credential)
-  await sendSession(req, res, user.id, user)
+  await sendSession(req, res, user.id, user, req.body.rememberMe === true)
 })
 
 /** Le client web lit l'id public Google ici (pas de secret exposé). */
@@ -202,9 +218,12 @@ authRouter.post('/refresh', async (req: Request, res: Response) => {
     res.status(401).json({ error: 'Aucune session', code: 'NO_SESSION' })
     return
   }
-  const { user, refreshToken, accessToken } = await auth.rotateRefreshToken(raw, sessionMeta(req))
+  const { user, refreshToken, accessToken, rememberMe } = await auth.rotateRefreshToken(
+    raw,
+    sessionMeta(req),
+  )
   res
-    .cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions)
+    .cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(rememberMe))
     .json({ user: toPublicUser(user), accessToken })
 })
 
@@ -242,7 +261,7 @@ authRouter.delete('/sessions/:familyId', requireAuth, async (req: Request, res: 
 
   // Déconnexion de l'appareil courant : le cookie de ce navigateur est effacé.
   if (familyId === currentFamilyId) {
-    res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions, maxAge: undefined })
+    res.clearCookie(REFRESH_COOKIE, baseCookieOptions)
   }
   res.status(204).end()
 })
@@ -253,7 +272,7 @@ authRouter.post('/logout', async (req: Request, res: Response) => {
     await auth.revokeRefreshToken(raw)
     log('info', 'auth.logout', {})
   }
-  res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions, maxAge: undefined }).status(204).end()
+  res.clearCookie(REFRESH_COOKIE, baseCookieOptions).status(204).end()
 })
 
 // ── Réinitialisation de mot de passe ─────────────────────────

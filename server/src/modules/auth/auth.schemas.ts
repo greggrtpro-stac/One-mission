@@ -81,11 +81,15 @@ export const registerSchema = z.object({
   turnstileToken: turnstileTokenSchema,
 })
 
+/** Coché : cookie de refresh persistant (30 j). Décoché (par défaut) : cookie de session. */
+export const rememberMeSchema = z.boolean().optional().default(false)
+
 export const loginSchema = z.object({
   email: emailSchema,
   // Pas de politique ici : les comptes existants gardent leur mot de passe.
   password: z.string().min(1, 'Mot de passe requis').max(PASSWORD_MAX_LENGTH),
   turnstileToken: turnstileTokenSchema,
+  rememberMe: rememberMeSchema,
 })
 
 export const forgotPasswordSchema = z.object({
@@ -112,6 +116,7 @@ export const verifyEmailSchema = z.object({
 export const googleAuthSchema = z.object({
   /** id_token renvoyé par Google Identity Services. */
   credential: z.string().min(1),
+  rememberMe: rememberMeSchema,
 })
 
 export type RegisterInput = z.infer<typeof registerSchema>

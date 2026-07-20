@@ -35,6 +35,8 @@ function loadGsiScript(): Promise<void> {
 
 interface GoogleButtonProps {
   onError?: (message: string) => void
+  /** Coché : cookie de refresh persistant pour la session ouverte via Google. */
+  rememberMe?: boolean
 }
 
 /**
@@ -46,12 +48,17 @@ interface GoogleButtonProps {
  * préalable et évite tout appel vers Google pour les visiteurs qui ne
  * l'utilisent pas.
  */
-export function GoogleButton({ onError }: GoogleButtonProps) {
+export function GoogleButton({ onError, rememberMe = false }: GoogleButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const theme = useThemeStore((s) => s.theme)
   const [activated, setActivated] = useState(false)
   const [loadingScript, setLoadingScript] = useState(false)
+  // Ref plutôt qu'une dépendance d'effet : évite de ré-initialiser (et de
+  // faire clignoter) le bouton Google déjà rendu quand la case est cochée
+  // après coup — seul le callback a besoin de la valeur la plus récente.
+  const rememberMeRef = useRef(rememberMe)
+  rememberMeRef.current = rememberMe
 
   const { data } = useQuery({
     queryKey: ['google-client-id'],
@@ -72,7 +79,7 @@ export function GoogleButton({ onError }: GoogleButtonProps) {
           client_id: clientId,
           callback: async (response: { credential: string }) => {
             try {
-              await loginWithGoogle(response.credential)
+              await loginWithGoogle(response.credential, rememberMeRef.current)
               navigate('/app')
             } catch (e) {
               onError?.(e instanceof Error ? e.message : 'Connexion Google impossible')

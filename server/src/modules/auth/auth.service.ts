@@ -11,7 +11,12 @@ import { ApiError } from '../../middleware/error.js'
 import type { LoginInput, RegisterInput } from './auth.schemas.js'
 import { requestEmailVerification } from './verification.service.js'
 
-const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 jours
+// « Rester connecté » coché : le token (et son cookie) vivent 30 jours.
+// Décoché : cookie de session côté navigateur, mais la validité côté serveur
+// reste bornée à 24 h — un filet de sécurité, certains navigateurs restaurant
+// les cookies de session à la réouverture au lieu de les jeter à la fermeture.
+const REMEMBER_REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 jours
+const SESSION_REFRESH_TTL_MS = 24 * 60 * 60 * 1000 // 24 heures
 const RESET_TTL_MS = 60 * 60 * 1000 // 1 heure
 
 const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null
@@ -26,15 +31,18 @@ export interface SessionMeta {
 export async function issueRefreshToken(
   userId: string,
   meta: SessionMeta,
+  rememberMe: boolean,
   /** Rotation : conserve l'identité de session et sa date de connexion. */
   carryOver?: { familyId: string; connectedAt: Date },
 ): Promise<string> {
   const token = generateToken()
+  const ttl = rememberMe ? REMEMBER_REFRESH_TTL_MS : SESSION_REFRESH_TTL_MS
   await prisma.refreshToken.create({
     data: {
       userId,
       tokenHash: hashToken(token),
-      expiresAt: new Date(Date.now() + REFRESH_TTL_MS),
+      expiresAt: new Date(Date.now() + ttl),
+      rememberMe,
       userAgent: meta.userAgent,
       ip: meta.ip,
       ...(carryOver ? { familyId: carryOver.familyId, connectedAt: carryOver.connectedAt } : {}),
@@ -46,7 +54,7 @@ export async function issueRefreshToken(
 export async function rotateRefreshToken(
   rawToken: string,
   meta: SessionMeta,
-): Promise<{ user: User; refreshToken: string; accessToken: string }> {
+): Promise<{ user: User; refreshToken: string; accessToken: string; rememberMe: boolean }> {
   const record = await prisma.refreshToken.findUnique({
     where: { tokenHash: hashToken(rawToken) },
     include: { user: true },
@@ -57,12 +65,14 @@ export async function rotateRefreshToken(
   }
 
   // Rotation : l'ancien token est révoqué, un nouveau est émis dans la même
-  // famille (même session « appareil », date de connexion d'origine conservée).
+  // famille (même session « appareil », date de connexion d'origine et
+  // préférence « Rester connecté » conservées — la rotation ne doit jamais
+  // changer le type de cookie choisi à la connexion).
   await prisma.refreshToken.update({
     where: { id: record.id },
     data: { revokedAt: new Date() },
   })
-  const refreshToken = await issueRefreshToken(record.userId, meta, {
+  const refreshToken = await issueRefreshToken(record.userId, meta, record.rememberMe, {
     familyId: record.familyId,
     connectedAt: record.connectedAt,
   })
@@ -71,7 +81,17 @@ export async function rotateRefreshToken(
     user: record.user,
     refreshToken,
     accessToken: signAccessToken(record.userId),
+    rememberMe: record.rememberMe,
   }
+}
+
+/** Préférence « Rester connecté » du token porté par le cookie courant (false si absent/inconnu). */
+export async function getRememberMeForToken(rawToken: string): Promise<boolean> {
+  const record = await prisma.refreshToken.findUnique({
+    where: { tokenHash: hashToken(rawToken) },
+    select: { rememberMe: true },
+  })
+  return record?.rememberMe ?? false
 }
 
 /** Famille (session) du token porté par le cookie, si encore actif. */

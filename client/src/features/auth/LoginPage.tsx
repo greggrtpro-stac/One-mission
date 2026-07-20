@@ -29,6 +29,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [generalError, setGeneralError] = useState<string | null>(null)
@@ -42,7 +43,7 @@ export function LoginPage() {
   }, [])
 
   const mutation = useMutation({
-    mutationFn: () => login(email, password, turnstileToken ?? ''),
+    mutationFn: () => login(email, password, turnstileToken ?? '', rememberMe),
     onSuccess: () => navigate('/app'),
     onError: (err) => {
       // Compte non vérifié : l'encart dédié (renvoi d'e-mail) suffit, pas
@@ -128,7 +129,16 @@ export function LoginPage() {
             placeholder="••••••••"
             error={fieldErrors.password}
           />
-          <div className="mt-1.5 text-right">
+          <div className="mt-2.5 flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm text-muted">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="size-4 shrink-0 cursor-pointer accent-accent"
+              />
+              Rester connecté
+            </label>
             <Link to="/forgot-password" className="text-xs text-muted hover:text-accent">
               Mot de passe oublié ?
             </Link>
@@ -173,7 +183,7 @@ export function LoginPage() {
         </div>
       )}
 
-      <GoogleButton onError={setGoogleError} />
+      <GoogleButton onError={setGoogleError} rememberMe={rememberMe} />
     </AuthLayout>
   )
 }

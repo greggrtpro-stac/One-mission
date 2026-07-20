@@ -8,7 +8,7 @@ import { prisma } from '../../lib/prisma.js'
 import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
 import { validateBody } from '../../middleware/validate.js'
-import { REFRESH_COOKIE, refreshCookieOptions } from '../auth/auth.routes.js'
+import { baseCookieOptions, REFRESH_COOKIE, refreshCookieOptions } from '../auth/auth.routes.js'
 import * as auth from '../auth/auth.service.js'
 import { handleAccountDeletion } from '../guilds/guilds.service.js'
 import { emailSchema, nameSchema, passwordSchema, usernameSchema } from '../auth/auth.schemas.js'
@@ -166,23 +166,28 @@ usersRouter.patch(
       data: { passwordHash: await hashPassword(newPassword) },
     })
 
+    // Préférence « Rester connecté » de la session courante — à conserver sur
+    // le nouveau cookie réémis ci-dessous (le path /api/auth rend le cookie
+    // refresh illisible ici, donc on la relit en base avant de tout révoquer).
+    const currentRaw = req.cookies?.[REFRESH_COOKIE] as string | undefined
+    const rememberMe = currentRaw ? await auth.getRememberMeForToken(currentRaw) : false
+
     // Sécurité : un changement de mot de passe révoque TOUTES les sessions
     // (si le mot de passe avait fuité, l'attaquant perd la sienne), puis une
     // session neuve est immédiatement réémise pour cet appareil — l'utilisateur
     // reste connecté ici, les autres appareils sont déconnectés.
-    // (Le cookie refresh est limité au path /api/auth : illisible ici, mais on
-    // peut en poser un nouveau.)
     await prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     })
-    const refreshToken = await auth.issueRefreshToken(userId, {
-      userAgent: req.get('user-agent') ?? null,
-      ip: req.ip ?? null,
-    })
+    const refreshToken = await auth.issueRefreshToken(
+      userId,
+      { userAgent: req.get('user-agent') ?? null, ip: req.ip ?? null },
+      rememberMe,
+    )
 
     res
-      .cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions)
+      .cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(rememberMe))
       .json({ message: 'Mot de passe mis à jour' })
   },
 )
@@ -236,7 +241,7 @@ usersRouter.post('/me/logout-all', async (req: Request, res: Response) => {
     data: { revokedAt: new Date() },
   })
   res
-    .clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions, maxAge: undefined })
+    .clearCookie(REFRESH_COOKIE, baseCookieOptions)
     .json({ message: 'Déconnecté de tous les appareils' })
 })
 
@@ -260,6 +265,6 @@ usersRouter.delete(
     // Une guilde ne reste jamais sans chef : transmission (ou dissolution) avant cascade.
     await handleAccountDeletion(userId)
     await prisma.user.delete({ where: { id: userId } })
-    res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions, maxAge: undefined }).status(204).end()
+    res.clearCookie(REFRESH_COOKIE, baseCookieOptions).status(204).end()
   },
 )

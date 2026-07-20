@@ -447,6 +447,13 @@ model RefreshToken {
   revokedAt DateTime?
   createdAt DateTime  @default(now())
 
+  // « Rester connecté » coché à la connexion : cookie persistant (30 j) et
+  // conservé tel quel à chaque rotation. Décoché : cookie de session (expire
+  // à la fermeture du navigateur) et courte durée de vie côté serveur — un
+  // filet de sécurité, certains navigateurs restaurant les cookies de session
+  // à la réouverture (ex. « Continuer où vous en étiez » de Chrome).
+  rememberMe Boolean @default(false)
+
   // Session d'appareil : les tokens sont rotatifs, familyId reste stable à
   // travers les rotations et identifie la session dans « Appareils connectés ».
   familyId    String   @default(cuid())

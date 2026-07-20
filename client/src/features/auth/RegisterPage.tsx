@@ -72,6 +72,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [generalError, setGeneralError] = useState<string | null>(null)
@@ -225,6 +226,16 @@ export function RegisterPage() {
           error={fieldErrors.confirm ?? (mismatch ? 'Les mots de passe ne correspondent pas.' : undefined)}
         />
 
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="size-4 shrink-0 cursor-pointer accent-accent"
+          />
+          Rester connecté
+        </label>
+
         <div className="flex flex-col gap-1.5">
           <label className="flex items-start gap-2.5 text-sm text-muted">
             <input
@@ -278,7 +289,11 @@ export function RegisterPage() {
         <PrivacyNotice text="Les données de ce formulaire servent uniquement à créer et gérer ton compte. Tu peux les consulter, les exporter ou les supprimer à tout moment depuis les Paramètres." />
       </form>
 
-      <GoogleButton onError={setGoogleError} />
+      {/* La création de compte par e-mail n'ouvre pas de session (voir
+          EmailSentScreen — confirmation obligatoire avant connexion) : ici,
+          « Rester connecté » ne s'applique qu'à une inscription via Google,
+          qui ouvre une session immédiatement. */}
+      <GoogleButton onError={setGoogleError} rememberMe={rememberMe} />
     </AuthLayout>
   )
 }

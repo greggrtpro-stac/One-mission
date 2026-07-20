@@ -36,17 +36,24 @@ export async function login(
   email: string,
   password: string,
   turnstileToken: string,
+  /** Coché : cookie de refresh persistant (survit à la fermeture du navigateur). */
+  rememberMe = false,
 ): Promise<AuthResponse> {
   const previousUserId = useAuthStore.getState().user?.id
-  const data = await http.post<AuthResponse>('/api/auth/login', { email, password, turnstileToken })
+  const data = await http.post<AuthResponse>('/api/auth/login', {
+    email,
+    password,
+    turnstileToken,
+    rememberMe,
+  })
   clearCacheIfSwitchingFrom(previousUserId, data.user.id)
   useAuthStore.getState().setSession(data.user, data.accessToken)
   return data
 }
 
-export async function loginWithGoogle(credential: string): Promise<AuthResponse> {
+export async function loginWithGoogle(credential: string, rememberMe = false): Promise<AuthResponse> {
   const previousUserId = useAuthStore.getState().user?.id
-  const data = await http.post<AuthResponse>('/api/auth/google', { credential })
+  const data = await http.post<AuthResponse>('/api/auth/google', { credential, rememberMe })
   clearCacheIfSwitchingFrom(previousUserId, data.user.id)
   useAuthStore.getState().setSession(data.user, data.accessToken)
   return data
