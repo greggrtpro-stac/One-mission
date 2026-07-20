@@ -18,8 +18,9 @@ export const friendsApi = {
   removeFriend: (userId: string) => http.delete<void>(`/api/friends/${userId}`),
 }
 
-/** Futur centre de notifications — l'API existe déjà, l'UI viendra plus tard. */
+/** Centre de notifications (cloche du header) — amis, guildes, et types futurs. */
 export const notificationsApi = {
   list: () => http.get<NotificationsResponse>('/api/notifications'),
+  markRead: (id: string) => http.post<void>(`/api/notifications/${id}/read`),
   readAll: () => http.post<void>('/api/notifications/read-all'),
 }

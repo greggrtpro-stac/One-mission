@@ -9,7 +9,7 @@ import { DEFAULT_FRIEND_PREFS, type FriendPrefs } from '@one-mission/shared'
 import { prisma } from '../../lib/prisma.js'
 import { getUserId, requireAuth } from '../../middleware/auth.js'
 import { ApiError } from '../../middleware/error.js'
-import { areFriends } from '../friends/friends.service.js'
+import { areFriends, friendIds } from '../friends/friends.service.js'
 import { computeProfileStats } from '../stats/stats.service.js'
 
 const TOP_SIZE = 50
@@ -43,6 +43,12 @@ leaderboardRouter.use(requireAuth)
 
 leaderboardRouter.get('/', async (req: Request, res: Response) => {
   const meId = getUserId(req)
+  const friendsOnly = req.query.scope === 'friends'
+
+  if (friendsOnly) {
+    res.json(await friendsLeaderboard(meId))
+    return
+  }
 
   // Confidentialité : seuls les joueurs qui l'acceptent apparaissent au classement.
   const [top, totalPlayers, me] = await Promise.all([
@@ -81,6 +87,26 @@ leaderboardRouter.get('/', async (req: Request, res: Response) => {
   const response: LeaderboardResponse = { entries, me: meEntry, totalPlayers }
   res.json(response)
 })
+
+/**
+ * Classement restreint aux amis (+ soi-même), même tri que le classement
+ * global (XP totale desc, ancienneté croissante en cas d'égalité). Pas de
+ * filtre `showOnLeaderboard` ici : un ami reste visible même s'il a masqué
+ * son profil du classement PUBLIC — même règle que son profil (voir
+ * GET /:userId ci-dessous), la confidentialité vise les inconnus, pas les amis.
+ */
+async function friendsLeaderboard(meId: string): Promise<LeaderboardResponse> {
+  const ids = [meId, ...(await friendIds(meId))]
+  const rows = await prisma.user.findMany({
+    where: { id: { in: ids } },
+    orderBy: [{ totalXp: 'desc' }, { createdAt: 'asc' }],
+    select: publicFields,
+  })
+  const entries = rows.map((row, i) => toEntry(row, i + 1, meId))
+  // meId est toujours dans `ids` : l'entrée existe forcément.
+  const meEntry = entries.find((e) => e.isMe) as LeaderboardEntry
+  return { entries, me: meEntry, totalPlayers: entries.length }
+}
 
 /**
  * Profil public d'un joueur du classement.

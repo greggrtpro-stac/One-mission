@@ -77,14 +77,55 @@ export async function areFriends(a: string, b: string): Promise<boolean> {
 function notifyFriendEvent(
   userId: string,
   type: 'FRIEND_REQUEST_RECEIVED' | 'FRIEND_REQUEST_ACCEPTED' | 'FRIEND_REQUEST_DECLINED',
-  from: { id: string; username: string },
+  from: { id: string; username: string; avatarUrl: string | null },
+  /** Complément par type — ex. `requestId` pour agir depuis la notification sans repasser par la recherche. */
+  extra?: Record<string, string>,
 ) {
   return prisma.notification.create({
-    data: { userId, type, data: { fromUserId: from.id, fromUsername: from.username } },
+    data: {
+      userId,
+      type,
+      data: {
+        fromUserId: from.id,
+        fromUsername: from.username,
+        fromAvatarUrl: from.avatarUrl,
+        ...extra,
+      },
+    },
+  })
+}
+
+/**
+ * Marque comme résolue la notification « demande reçue » associée à
+ * `requestId` (acceptée, refusée, ou annulée par l'expéditeur) : le client
+ * cesse d'y proposer Accepter/Refuser, y compris après un rechargement de
+ * page où l'état local du composant (déjà agi ou non) ne survit pas.
+ * Un seul destinataire par demande ⇒ au plus une ligne à mettre à jour.
+ */
+async function markRequestNotificationResolved(requestId: string): Promise<void> {
+  const notif = await prisma.notification.findFirst({
+    where: { type: 'FRIEND_REQUEST_RECEIVED', data: { path: ['requestId'], equals: requestId } },
+  })
+  if (!notif) return
+  await prisma.notification.update({
+    where: { id: notif.id },
+    data: {
+      data: { ...(notif.data as Record<string, unknown>), resolved: true },
+      readAt: notif.readAt ?? new Date(),
+    },
   })
 }
 
 // ── Liste d'amis ─────────────────────────────────────────────
+
+/** Ids des amis d'un joueur — utilisé par le classement filtré « mes amis ». */
+export async function friendIds(meId: string): Promise<string[]> {
+  const rows = await prisma.friendship.findMany({
+    where: { OR: [{ userAId: meId }, { userBId: meId }] },
+    select: { userAId: true, userBId: true },
+  })
+  return rows.map((row) => (row.userAId === meId ? row.userBId : row.userAId))
+}
 
 export async function listFriends(meId: string): Promise<FriendDto[]> {
   const rows = await prisma.friendship.findMany({
@@ -215,7 +256,10 @@ export async function sendRequest(
   }
 
   const [me, target] = await Promise.all([
-    prisma.user.findUnique({ where: { id: meId }, select: { id: true, username: true } }),
+    prisma.user.findUnique({
+      where: { id: meId },
+      select: { id: true, username: true, avatarUrl: true },
+    }),
     prisma.user.findUnique({
       where: { id: targetId },
       select: { id: true, username: true, friendPrefs: true },
@@ -240,8 +284,9 @@ export async function sendRequest(
     return { status: 'accepted' }
   }
 
+  let created: { id: string }
   try {
-    await prisma.friendRequest.create({ data: { senderId: meId, receiverId: targetId } })
+    created = await prisma.friendRequest.create({ data: { senderId: meId, receiverId: targetId } })
   } catch (err) {
     // Contrainte d'unicité (senderId, receiverId) : demande déjà en attente.
     if ((err as { code?: string }).code === 'P2002') {
@@ -249,7 +294,9 @@ export async function sendRequest(
     }
     throw err
   }
-  await notifyFriendEvent(targetId, 'FRIEND_REQUEST_RECEIVED', me)
+  // requestId : permet d'accepter/refuser directement depuis la notification,
+  // sans repasser par la recherche du joueur.
+  await notifyFriendEvent(targetId, 'FRIEND_REQUEST_RECEIVED', me, { requestId: created.id })
   return { status: 'pending' }
 }
 
@@ -257,7 +304,7 @@ export async function sendRequest(
 async function acceptRequestRow(
   requestId: string,
   accepterId: string,
-  accepter: { id: string; username: string },
+  accepter: { id: string; username: string; avatarUrl: string | null },
 ) {
   const request = await prisma.friendRequest.findUnique({ where: { id: requestId } })
   if (!request || request.receiverId !== accepterId) {
@@ -274,13 +321,16 @@ async function acceptRequestRow(
     }),
     prisma.friendRequest.delete({ where: { id: requestId } }),
   ])
-  await notifyFriendEvent(request.senderId, 'FRIEND_REQUEST_ACCEPTED', accepter)
+  await Promise.all([
+    notifyFriendEvent(request.senderId, 'FRIEND_REQUEST_ACCEPTED', accepter),
+    markRequestNotificationResolved(requestId),
+  ])
 }
 
 export async function acceptRequest(meId: string, requestId: string): Promise<void> {
   const me = await prisma.user.findUnique({
     where: { id: meId },
-    select: { id: true, username: true },
+    select: { id: true, username: true, avatarUrl: true },
   })
   if (!me) throw new ApiError(401, 'Authentification requise', 'UNAUTHENTICATED')
   await acceptRequestRow(requestId, meId, me)
@@ -293,10 +343,13 @@ export async function declineRequest(meId: string, requestId: string): Promise<v
   }
   const me = await prisma.user.findUnique({
     where: { id: meId },
-    select: { id: true, username: true },
+    select: { id: true, username: true, avatarUrl: true },
   })
   await prisma.friendRequest.delete({ where: { id: requestId } })
-  if (me) await notifyFriendEvent(request.senderId, 'FRIEND_REQUEST_DECLINED', me)
+  await Promise.all([
+    me ? notifyFriendEvent(request.senderId, 'FRIEND_REQUEST_DECLINED', me) : Promise.resolve(),
+    markRequestNotificationResolved(requestId),
+  ])
 }
 
 /** Annulation par l'expéditeur — sans notification (la cible n'a rien à savoir). */
@@ -306,6 +359,9 @@ export async function cancelRequest(meId: string, requestId: string): Promise<vo
     throw new ApiError(404, 'Demande introuvable', 'REQUEST_NOT_FOUND')
   }
   await prisma.friendRequest.delete({ where: { id: requestId } })
+  // La cible avait une notification « demande reçue » avec Accepter/Refuser :
+  // ne doit plus proposer d'agir sur une demande qui n'existe plus.
+  await markRequestNotificationResolved(requestId)
 }
 
 export async function removeFriend(meId: string, otherId: string): Promise<void> {

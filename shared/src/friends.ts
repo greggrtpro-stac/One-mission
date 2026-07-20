@@ -81,7 +81,10 @@ export interface FriendSearchResponse {
   results: FriendSearchResult[]
 }
 
-// ── Notifications (centre de notifications à venir) ─────────
+// ── Notifications (centre de notifications générique — cloche du header) ────
+// `type` et `data` restent volontairement génériques : un nouveau type de
+// notification (succès, rappel de quête, récompense…) n'ajoute qu'une valeur
+// à NotificationKind et sa propre forme de `data`, sans toucher au reste.
 
 export type NotificationKind =
   | 'FRIEND_REQUEST_RECEIVED'

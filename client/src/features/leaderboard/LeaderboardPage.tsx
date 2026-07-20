@@ -1,11 +1,11 @@
 import type { LeaderboardEntry } from '@one-mission/shared'
 import { useQuery } from '@tanstack/react-query'
-import { Castle, ChevronRight, Crown, EyeOff, Flame, Search, Trophy, User } from 'lucide-react'
+import { Castle, ChevronRight, Crown, EyeOff, Flame, Search, Trophy, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { guildsApi } from '@/api/guilds'
 import { leaderboardApi } from '@/api/stats'
-import { Avatar, Badge, Card, Input, Spinner } from '@/components/ui'
+import { Avatar, Badge, Button, Card, Input, Spinner, Toggle } from '@/components/ui'
 import { GuildRow } from '@/features/guilds/GuildRow'
 import { cn } from '@/lib/cn'
 import { useAuthStore } from '@/stores/auth'
@@ -133,9 +133,18 @@ type BoardTab = 'players' | 'guilds'
 
 export function LeaderboardPage() {
   const [tab, setTab] = useState<BoardTab>('players')
-  const query = useQuery({ queryKey: ['leaderboard'], queryFn: leaderboardApi.get })
+  const [friendsOnly, setFriendsOnly] = useState(false)
+  const scope = friendsOnly ? 'friends' : 'global'
+  // Clé de requête par scope : bascule instantanée (cache déjà chaud dès le
+  // second aller-retour) sans jamais mélanger les deux classements.
+  const query = useQuery({
+    queryKey: ['leaderboard', scope],
+    queryFn: () => leaderboardApi.get(scope),
+  })
   const data = query.data
   const isHidden = useAuthStore((s) => s.user?.showOnLeaderboard === false)
+  // Scope amis sans aucun ami : seule son entrée revient (voir friendsLeaderboard côté serveur).
+  const noFriends = friendsOnly && !!data && data.entries.length <= 1
 
   const tabs: { id: BoardTab; label: string; icon: typeof User }[] = [
     { id: 'players', label: 'Joueurs', icon: User },
@@ -151,13 +160,18 @@ export function LeaderboardPage() {
             {tab === 'guilds'
               ? 'Les guildes les plus puissantes, classées par Score global.'
               : data
-                ? `${data.totalPlayers} joueur${data.totalPlayers > 1 ? 's' : ''} en quête de leur mission.`
+                ? friendsOnly
+                  ? noFriends
+                    ? "Ton classement entre amis, une fois que tu en auras."
+                    : `${data.totalPlayers} amis (toi compris) dans ce classement.`
+                  : `${data.totalPlayers} joueur${data.totalPlayers > 1 ? 's' : ''} en quête de leur mission.`
                 : 'Les joueurs les plus réguliers, classés par XP totale.'}
           </p>
         </div>
         {tab === 'players' &&
           data &&
-          (isHidden ? (
+          !noFriends &&
+          (isHidden && !friendsOnly ? (
             <Badge variant="outline" className="text-sm">
               <EyeOff size={13} /> Profil masqué
             </Badge>
@@ -186,6 +200,12 @@ export function LeaderboardPage() {
         ))}
       </div>
 
+      {tab === 'players' && (
+        <Card className="mt-4 p-4">
+          <Toggle checked={friendsOnly} onChange={setFriendsOnly} label="Afficher uniquement mes amis" />
+        </Card>
+      )}
+
       {tab === 'guilds' ? (
         <GuildsBoard />
       ) : query.isLoading ? (
@@ -193,38 +213,53 @@ export function LeaderboardPage() {
           <Spinner className="text-accent" />
         </div>
       ) : data ? (
-        <>
-          <ul className="mt-6 flex flex-col gap-2">
-            {data.entries.map((e) => (
-              <Row key={e.rank} entry={e} />
-            ))}
-          </ul>
+        noFriends ? (
+          <Card className="mt-6 flex flex-col items-center gap-3 p-8 text-center">
+            <Users size={26} className="text-faint" />
+            <p className="text-sm text-muted">
+              Vous n'avez pas encore d'amis. Ajoutez des joueurs pour afficher votre classement
+              entre amis.
+            </p>
+            <Link to="/app/friends">
+              <Button size="sm">
+                <Search size={14} /> Rechercher des joueurs
+              </Button>
+            </Link>
+          </Card>
+        ) : (
+          <>
+            <ul className="mt-6 flex flex-col gap-2">
+              {data.entries.map((e) => (
+                <Row key={e.rank} entry={e} />
+              ))}
+            </ul>
 
-          {/* Profil masqué : le joueur n'apparaît nulle part, on lui explique pourquoi */}
-          {isHidden ? (
-            <Card className="mt-4 flex items-center gap-3 p-4 text-sm text-muted">
-              <EyeOff size={16} className="shrink-0" />
-              <p>
-                Ton profil est masqué du classement public : les autres joueurs ne te voient pas.
-                Tu continues à gagner de l'XP — réactive l'option dans les{' '}
-                <Link to="/app/settings" className="font-medium text-accent hover:underline">
-                  Paramètres
-                </Link>{' '}
-                pour réapparaître avec ton rang à jour.
-              </p>
-            </Card>
-          ) : (
-            /* Hors du top : rappelle la position du joueur */
-            !data.entries.some((e) => e.isMe) && (
-              <div className="mt-4">
-                <p className="mb-2 text-center text-xs text-faint">⋯</p>
-                <ul>
-                  <Row entry={data.me} />
-                </ul>
-              </div>
-            )
-          )}
-        </>
+            {/* Profil masqué : le joueur n'apparaît nulle part, on lui explique pourquoi */}
+            {isHidden && !friendsOnly ? (
+              <Card className="mt-4 flex items-center gap-3 p-4 text-sm text-muted">
+                <EyeOff size={16} className="shrink-0" />
+                <p>
+                  Ton profil est masqué du classement public : les autres joueurs ne te voient pas.
+                  Tu continues à gagner de l'XP — réactive l'option dans les{' '}
+                  <Link to="/app/settings" className="font-medium text-accent hover:underline">
+                    Paramètres
+                  </Link>{' '}
+                  pour réapparaître avec ton rang à jour.
+                </p>
+              </Card>
+            ) : (
+              /* Hors du top : rappelle la position du joueur (jamais le cas en scope amis, tous inclus) */
+              !data.entries.some((e) => e.isMe) && (
+                <div className="mt-4">
+                  <p className="mb-2 text-center text-xs text-faint">⋯</p>
+                  <ul>
+                    <Row entry={data.me} />
+                  </ul>
+                </div>
+              )
+            )}
+          </>
+        )
       ) : (
         <Card className="mt-6 p-8 text-center text-sm text-muted">
           Impossible de charger le classement.
