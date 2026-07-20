@@ -87,7 +87,7 @@ export function LandingPage() {
           déborder ou de couper le texte des boutons. */}
       <header className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-2 gap-y-2 px-3 py-4 md:flex-nowrap md:px-6 md:py-5">
         <Logo size={30} className="shrink-0" />
-        <nav className="flex flex-wrap items-center justify-end gap-1 md:flex-nowrap md:gap-2">
+        <nav className="flex flex-wrap items-center justify-end gap-1 max-md:ml-auto md:flex-nowrap md:gap-2">
           <a href="#pricing" className="mr-2 hidden text-sm font-medium text-muted hover:text-ink sm:inline">
             Tarifs
           </a>
