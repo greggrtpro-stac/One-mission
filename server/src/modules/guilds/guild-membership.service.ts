@@ -61,7 +61,7 @@ export async function joinGuild(
 
   const me = await prisma.user.findUnique({
     where: { id: meId },
-    select: { id: true, username: true, level: true },
+    select: { id: true, username: true, level: true, avatarUrl: true },
   })
   if (!me) throw new ApiError(401, 'Authentification requise', 'UNAUTHENTICATED')
 
@@ -82,8 +82,9 @@ export async function joinGuild(
     await admitMember(guildId, meId)
     await notifyGuildEvent(await guildOfficerIds(guildId, meId), 'GUILD_MEMBER_JOINED', {
       ...guildData(guild),
-      username: me.username,
-      userId: me.id,
+      fromUsername: me.username,
+      fromUserId: me.id,
+      fromAvatarUrl: me.avatarUrl,
     })
     return { status: 'joined' }
   }
@@ -100,8 +101,9 @@ export async function joinGuild(
   }
   await notifyGuildEvent(await guildOfficerIds(guildId), 'GUILD_REQUEST_RECEIVED', {
     ...guildData(guild),
-    username: me.username,
-    userId: me.id,
+    fromUsername: me.username,
+    fromUserId: me.id,
+    fromAvatarUrl: me.avatarUrl,
   })
   return { status: 'requested' }
 }
@@ -118,7 +120,7 @@ export async function cancelJoinRequest(meId: string, requestId: string): Promis
 export async function acceptJoinRequest(meId: string, requestId: string): Promise<void> {
   const request = await prisma.guildJoinRequest.findUnique({
     where: { id: requestId },
-    include: { guild: true, user: { select: { id: true, username: true } } },
+    include: { guild: true, user: { select: { id: true, username: true, avatarUrl: true } } },
   })
   if (!request) throw new ApiError(404, 'Demande introuvable', 'REQUEST_NOT_FOUND')
   await requireGuildRole(meId, request.guildId, 'OFFICER')
@@ -132,11 +134,12 @@ export async function acceptJoinRequest(meId: string, requestId: string): Promis
 
   await admitMember(request.guildId, request.userId)
   await notifyGuildEvent([request.userId], 'GUILD_REQUEST_ACCEPTED', guildData(request.guild))
-  await notifyGuildEvent(
-    await guildOfficerIds(request.guildId, meId),
-    'GUILD_MEMBER_JOINED',
-    { ...guildData(request.guild), username: request.user.username, userId: request.user.id },
-  )
+  await notifyGuildEvent(await guildOfficerIds(request.guildId, meId), 'GUILD_MEMBER_JOINED', {
+    ...guildData(request.guild),
+    fromUsername: request.user.username,
+    fromUserId: request.user.id,
+    fromAvatarUrl: request.user.avatarUrl,
+  })
 }
 
 export async function declineJoinRequest(meId: string, requestId: string): Promise<void> {
@@ -189,11 +192,12 @@ export async function invitePlayer(meId: string, guildId: string, targetId: stri
 
   const inviter = await prisma.user.findUnique({
     where: { id: meId },
-    select: { username: true },
+    select: { username: true, avatarUrl: true },
   })
   await notifyGuildEvent([targetId], 'GUILD_INVITATION_RECEIVED', {
     ...guildData(membership.guild),
     fromUsername: inviter?.username ?? '',
+    fromAvatarUrl: inviter?.avatarUrl ?? null,
   })
 }
 
@@ -243,13 +247,17 @@ export async function acceptInvitation(meId: string, invitationId: string): Prom
   }
   await assertCanEnter(invitation.guild)
 
-  const me = await prisma.user.findUnique({ where: { id: meId }, select: { username: true } })
+  const me = await prisma.user.findUnique({
+    where: { id: meId },
+    select: { username: true, avatarUrl: true },
+  })
   await admitMember(invitation.guildId, meId)
-  await notifyGuildEvent(
-    await guildOfficerIds(invitation.guildId, meId),
-    'GUILD_MEMBER_JOINED',
-    { ...guildData(invitation.guild), username: me?.username ?? '', userId: meId },
-  )
+  await notifyGuildEvent(await guildOfficerIds(invitation.guildId, meId), 'GUILD_MEMBER_JOINED', {
+    ...guildData(invitation.guild),
+    fromUsername: me?.username ?? '',
+    fromUserId: meId,
+    fromAvatarUrl: me?.avatarUrl ?? null,
+  })
 }
 
 export async function declineInvitation(meId: string, invitationId: string): Promise<void> {
@@ -281,13 +289,17 @@ export async function leaveGuild(meId: string): Promise<void> {
     return
   }
 
-  const me = await prisma.user.findUnique({ where: { id: meId }, select: { username: true } })
+  const me = await prisma.user.findUnique({
+    where: { id: meId },
+    select: { username: true, avatarUrl: true },
+  })
   await prisma.guildMember.delete({ where: { userId: meId } })
-  await notifyGuildEvent(
-    await guildOfficerIds(membership.guildId, meId),
-    'GUILD_MEMBER_LEFT',
-    { ...guildData(membership.guild), username: me?.username ?? '', userId: meId },
-  )
+  await notifyGuildEvent(await guildOfficerIds(membership.guildId, meId), 'GUILD_MEMBER_LEFT', {
+    ...guildData(membership.guild),
+    fromUsername: me?.username ?? '',
+    fromUserId: meId,
+    fromAvatarUrl: me?.avatarUrl ?? null,
+  })
 }
 
 export async function kickMember(meId: string, guildId: string, targetId: string): Promise<void> {
@@ -297,7 +309,7 @@ export async function kickMember(meId: string, guildId: string, targetId: string
   const my = await requireGuildRole(meId, guildId, 'OFFICER')
   const target = await prisma.guildMember.findUnique({
     where: { userId: targetId },
-    include: { user: { select: { username: true } } },
+    include: { user: { select: { username: true, avatarUrl: true } } },
   })
   if (!target || target.guildId !== guildId) {
     throw new ApiError(404, 'Ce joueur n’est pas membre de la guilde', 'NOT_GUILD_MEMBER')
@@ -309,11 +321,12 @@ export async function kickMember(meId: string, guildId: string, targetId: string
 
   await prisma.guildMember.delete({ where: { userId: targetId } })
   await notifyGuildEvent([targetId], 'GUILD_KICKED', guildData(my.guild))
-  await notifyGuildEvent(
-    await guildOfficerIds(guildId, meId),
-    'GUILD_MEMBER_LEFT',
-    { ...guildData(my.guild), username: target.user.username, userId: targetId },
-  )
+  await notifyGuildEvent(await guildOfficerIds(guildId, meId), 'GUILD_MEMBER_LEFT', {
+    ...guildData(my.guild),
+    fromUsername: target.user.username,
+    fromUserId: targetId,
+    fromAvatarUrl: target.user.avatarUrl,
+  })
 }
 
 // ── Rôles ────────────────────────────────────────────────────
