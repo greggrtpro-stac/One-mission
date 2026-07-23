@@ -12,6 +12,33 @@ import { DemoEngine } from './demoEngine'
 const DESIGN_WIDTH = 1180
 
 /**
+ * En dessous de cette largeur de RENDU (après échelle), les zones tactiles
+ * du mockup deviennent trop petites pour un doigt. Repère concret : les
+ * lignes de la sidebar (l'interaction la plus fréquente : changer d'onglet)
+ * font ~34px de haut dans le design natif ; à ce plancher elles rendent à
+ * ~22px — en retrait de la cible HIG/Material (~44px, hors de portée sans
+ * annuler toute réduction), mais très largement au-dessus du ~11px obtenu
+ * en réduisant jusqu'à tout faire tenir sur un iPhone SE. Plutôt que de
+ * continuer à réduire pour tout faire tenir à l'écran, on plafonne l'échelle
+ * ici et on laisse l'utilisateur défiler horizontalement dans le mockup
+ * pour le reste — mêmes proportions, juste une fenêtre de lecture plus
+ * étroite que le mockup (un peu plus d'un écran de défilement en plus sur
+ * un iPhone 390px).
+ */
+const MIN_COMFORTABLE_RENDERED_WIDTH = 780
+const MIN_SCALE = MIN_COMFORTABLE_RENDERED_WIDTH / DESIGN_WIDTH
+
+/** Précision de l'échelle après arrondi (4 décimales) — au-delà, deux mesures
+ *  qui ne diffèrent que d'un sous-pixel doivent être considérées identiques. */
+const SCALE_PRECISION = 10_000
+
+interface Measurements {
+  scale: number
+  naturalHeight: number
+  needsHScroll: boolean
+}
+
+/**
  * Mockup interactif embarqué sous le hero : une fausse fenêtre de navigateur
  * contenant une reproduction jouable du dashboard (données fictives, 100 %
  * locale). Le rendu lui-même est délégué à `DemoEngine`, porté depuis
@@ -21,13 +48,45 @@ const DESIGN_WIDTH = 1180
  * mockup n'est jamais reflow-é : il garde sa largeur de conception fixe et
  * est réduit dans son ensemble via `transform: scale()`, exactement comme un
  * zoom arrière — proportions, mise en page et interactivité identiques au
- * rendu desktop, simplement plus petit.
+ * rendu desktop. En dessous de MIN_SCALE (petits téléphones), il n'est plus
+ * réduit davantage : la fenêtre de lecture défile horizontalement à la place.
+ *
+ * Architecture de mesure (important — évite un crash WebKit au pincer-zoomer
+ * iOS Safari constaté en production) :
+ *
+ * Un `ResizeObserver` ne DOIT jamais observer un élément dont une propriété
+ * de mise en page (ici la hauteur) est elle-même dérivée du state qu'il
+ * alimente — sinon chaque `setState` produit un nouveau layout, que
+ * l'observateur détecte à son tour, etc. C'est exactement ce qui se
+ * produisait ici : `outer` était à la fois observé ET sa hauteur
+ * (`naturalHeight * scale`) dépendait du résultat de cette observation. En
+ * usage normal, les deux mesures consécutives sont identiques et React
+ * n'effectue aucun re-rendu (bail-out sur state inchangé) — mais un
+ * pincer-zoomer sur iOS Safari relayoute en continu à des niveaux de zoom
+ * fractionnaires, et deux mesures peuvent alors différer d'un sous-pixel,
+ * ce qui suffit à faire repartir le cycle en rafale et à faire planter le
+ * renderer.
+ *
+ * Trois garde-fous indépendants suppriment cette possibilité :
+ * 1. `measureRef` est un élément dédié à la SEULE mesure de largeur : sa
+ *    hauteur est fixe (0), jamais dérivée d'un state — il ne peut donc
+ *    jamais réagir à ses propres conséquences.
+ * 2. Le callback du `ResizeObserver` ne fait plus AUCUN `setState` : il ne
+ *    fait que planifier un `requestAnimationFrame`, qui regroupe toute
+ *    rafale de déclenchements (aussi nombreux soient-ils) en un seul calcul
+ *    par frame.
+ * 3. Ce calcul arrondit les valeurs puis les compare strictement à la
+ *    dernière valeur réellement appliquée (`appliedRef`) : si rien n'a
+ *    changé, aucun `setState` n'est déclenché — quel que soit le nombre
+ *    d'invocations du `ResizeObserver`.
  */
 export function InteractiveDemo() {
   const rootRef = useRef<HTMLDivElement>(null)
   const outerRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
   const [naturalHeight, setNaturalHeight] = useState(860)
+  const [needsHScroll, setNeedsHScroll] = useState(false)
 
   useEffect(() => {
     const root = rootRef.current
@@ -37,27 +96,68 @@ export function InteractiveDemo() {
     return () => engine.destroy(root)
   }, [])
 
-  // Recalcule l'échelle à partir de la largeur réellement disponible (jamais
-  // devinée via des breakpoints) : fonctionne identiquement sur iPhone (390px),
-  // Android (~360px), tablette, et à tout redimensionnement de fenêtre.
-  // offsetHeight/offsetWidth (contrairement à getBoundingClientRect) ignorent
-  // le transform déjà appliqué : pas de boucle de rétroaction avec `scale`.
   useLayoutEffect(() => {
-    const outer = outerRef.current
+    const measure = measureRef.current
     const root = rootRef.current
-    if (!outer || !root) return
+    if (!measure || !root) return
 
-    function recompute() {
-      setNaturalHeight(root!.offsetHeight)
-      const availableWidth = outer!.clientWidth
-      setScale(availableWidth > 0 ? Math.min(1, availableWidth / DESIGN_WIDTH) : 1)
+    const appliedRef: { current: Measurements } = { current: { scale, naturalHeight, needsHScroll } }
+    let rafId: number | null = null
+
+    /** Calcule les nouvelles valeurs et ne touche React que si elles diffèrent réellement de ce qui est déjà affiché. */
+    function apply() {
+      rafId = null
+      const measureEl = measureRef.current
+      const rootEl = rootRef.current
+      if (!measureEl || !rootEl) return
+
+      const nextHeight = Math.round(rootEl.offsetHeight)
+      const availableWidth = measureEl.clientWidth
+
+      let nextScale: number
+      let nextNeedsHScroll: boolean
+      if (availableWidth <= 0) {
+        nextScale = 1
+        nextNeedsHScroll = false
+      } else {
+        const fitScale = availableWidth / DESIGN_WIDTH
+        const clamped = Math.min(1, Math.max(fitScale, MIN_SCALE))
+        nextScale = Math.round(clamped * SCALE_PRECISION) / SCALE_PRECISION
+        nextNeedsHScroll = nextScale > fitScale + 0.001
+      }
+
+      const prev = appliedRef.current
+      if (
+        prev.scale === nextScale &&
+        prev.naturalHeight === nextHeight &&
+        prev.needsHScroll === nextNeedsHScroll
+      ) {
+        return // valeurs identiques à ce qui est déjà à l'écran : aucun setState.
+      }
+
+      appliedRef.current = { scale: nextScale, naturalHeight: nextHeight, needsHScroll: nextNeedsHScroll }
+      setScale(nextScale)
+      setNaturalHeight(nextHeight)
+      setNeedsHScroll(nextNeedsHScroll)
     }
 
-    recompute()
-    const observer = new ResizeObserver(recompute)
-    observer.observe(outer)
+    /** Le ResizeObserver ne fait QUE planifier — jamais de setState ici. Une
+     *  rafale de déclenchements (ex. pincer-zoomer continu) ne produit
+     *  jamais plus d'un calcul par frame, grâce au garde `rafId`. */
+    function scheduleApply() {
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(apply)
+    }
+
+    scheduleApply()
+    const observer = new ResizeObserver(scheduleApply)
+    observer.observe(measure)
     observer.observe(root)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- appliedRef capture volontairement figée au montage, mise à jour par ref ensuite.
   }, [])
 
   return (
@@ -69,6 +169,21 @@ export function InteractiveDemo() {
         maxWidth: DESIGN_WIDTH,
         margin: '0 auto',
         height: naturalHeight * scale,
+        // Le plancher tactile (MIN_SCALE) peut rendre .omd-root plus large
+        // que cette fenêtre : dans ce cas seulement, elle devient la zone de
+        // défilement horizontal. Le cas "tout tient" (desktop/tablette,
+        // overflow visible par défaut) reste strictement inchangé.
+        overflowX: needsHScroll ? 'auto' : 'visible',
+        overflowY: needsHScroll ? 'auto' : 'visible',
+        WebkitOverflowScrolling: 'touch',
+        // isolation:isolate — Safari/WebKit a un bug documenté et connu où un
+        // ancêtre `overflow: hidden` distant (ici .landing-page) ne recadre
+        // pas correctement un descendant transformé (notre .omd-root mis à
+        // l'échelle) : selon la version, il l'affiche décalé/tronqué au lieu
+        // de simplement le montrer réduit. Isoler ici crée un contexte
+        // d'empilement propre exactement où vit le transform, ce qui est le
+        // correctif documenté qui fonctionne dans tous les navigateurs.
+        isolation: 'isolate',
         // L'animation d'entrée (CSS, anime transform:translateY) vit sur ce
         // wrapper plutôt que sur .omd-root : les deux ne peuvent pas partager
         // la propriété `transform` — une animation avec fill-mode "both"
@@ -77,16 +192,33 @@ export function InteractiveDemo() {
         animation: 'omRiseFlat .8s cubic-bezier(.16,1,.3,1) both',
       }}
     >
+      {/* Cible de mesure de largeur, seule observée pour la largeur : hauteur
+          fixe (0), jamais dérivée d'un state — ne peut jamais réagir à ses
+          propres conséquences (voir le commentaire d'architecture ci-dessus). */}
+      <div
+        ref={measureRef}
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 0, pointerEvents: 'none' }}
+      />
       <div
         ref={rootRef}
         className="omd-root"
         style={{
           position: 'absolute',
           top: 0,
-          left: '50%',
+          // Centré (left:50% + translateX(-50%)) quand tout tient dans la
+          // fenêtre. Dès que le plancher tactile force un débordement, un
+          // centrage laisserait la moitié gauche du mockup inaccessible (un
+          // conteneur à défilement ne scrolle jamais "avant" son point de
+          // départ) : on ancre alors à gauche pour que le défilement révèle
+          // naturellement la suite vers la droite, comme sur desktop.
+          left: needsHScroll ? 0 : '50%',
           width: DESIGN_WIDTH,
-          transform: `translateX(-50%) scale(${scale})`,
-          transformOrigin: 'top center',
+          transform: needsHScroll ? `scale(${scale})` : `translateX(-50%) scale(${scale})`,
+          transformOrigin: needsHScroll ? 'top left' : 'top center',
+          // will-change:transform force son propre calque de composition
+          // dès le premier rendu sur WebKit mobile — complément défensif au
+          // isolation:isolate du parent pour ce même bug de rendu Safari.
+          willChange: 'transform',
           border: '1px solid rgba(255,255,255,.11)',
           borderRadius: 20,
           background: '#0b0b0f',
