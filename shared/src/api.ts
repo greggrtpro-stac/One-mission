@@ -237,14 +237,13 @@ export interface WeeklyQuestActionResult {
   xp: XpResult | null
 }
 
-export interface QuoteDto {
-  text: string
-  author: string | null
-}
-
-/** Résumé léger du tableau de bord (le reste vient des endpoints dédiés). */
+/**
+ * Résumé léger du tableau de bord (le reste vient des endpoints dédiés).
+ * La citation du jour n'en fait pas partie : elle est calculée côté client
+ * à partir de `getDailyQuote()` (voir quotes.ts), avec l'heure locale de
+ * l'utilisateur — aucun aller-retour serveur, aucun stockage nécessaire.
+ */
 export interface DashboardSummary {
-  quote: QuoteDto
   deepWorkTodaySeconds: number
   /** Meilleure série d'addiction en cours (jours), null si aucune addiction suivie. */
   addictionDays: number | null

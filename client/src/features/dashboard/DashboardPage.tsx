@@ -1,4 +1,4 @@
-import { xpForLevel, type QuestDto, type WeeklyQuestDto } from '@one-mission/shared'
+import { getDailyQuote, xpForLevel, type QuestDto, type WeeklyQuestDto } from '@one-mission/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
@@ -104,6 +104,9 @@ export function DashboardPage() {
     day: 'numeric',
     month: 'long',
   })
+  // Déterministe (même citation toute la journée locale, change à minuit
+  // dans le fuseau horaire du joueur) : calculée ici, jamais côté serveur.
+  const dailyQuote = getDailyQuote()
 
   const todayQuests = (quests.data?.quests ?? [])
     .filter((q) => {
@@ -269,15 +272,9 @@ export function DashboardPage() {
           <Card className="relative overflow-hidden p-5">
             <Quote size={44} className="absolute -top-1 -right-1 rotate-12 text-accent opacity-15" />
             <h2 className="text-sm font-semibold">Citation du jour</h2>
-            {s ? (
-              <>
-                <p className="mt-3 text-sm leading-relaxed italic">« {s.quote.text} »</p>
-                {s.quote.author && (
-                  <p className="mt-2 text-xs font-medium text-accent">— {s.quote.author}</p>
-                )}
-              </>
-            ) : (
-              <p className="mt-3 text-sm text-muted">…</p>
+            <p className="mt-3 text-sm leading-relaxed italic">« {dailyQuote.text} »</p>
+            {dailyQuote.author && (
+              <p className="mt-2 text-xs font-medium text-accent">— {dailyQuote.author}</p>
             )}
           </Card>
 

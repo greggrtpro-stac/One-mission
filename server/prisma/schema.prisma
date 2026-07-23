@@ -836,10 +836,3 @@ model JournalEntry {
   @@unique([userId, date])
 }
 
-// ── Divers ───────────────────────────────────────────────────
-
-model Quote {
-  id     String  @id @default(cuid())
-  text   String
-  author String?
-}
