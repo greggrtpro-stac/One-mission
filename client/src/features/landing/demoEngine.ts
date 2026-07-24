@@ -745,13 +745,8 @@ export class DemoEngine {
     return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`
   }
 
-  private renderApp(root: Root) {
-    const d = root._d
-    const nav = root.querySelector('.omd-navbar')
-    const content = root.querySelector('.omd-content')
-    if (!nav || !content) return
-
-    nav.innerHTML =
+  private navHtml(d: any): string {
+    return (
       `<div style="padding:5px 9px 14px;display:flex;align-items:center;gap:9px"><svg width="21" height="21" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="17" stroke="#f6f6f4" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="70 36.8" transform="rotate(-90 24 24)"></circle><circle cx="24" cy="24" r="17" stroke="#8b5cf6" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="17 89.8" transform="rotate(66 24 24)"></circle><circle cx="24" cy="24" r="5" fill="#8b5cf6"></circle></svg><span style="font-size:14px;font-weight:600;letter-spacing:-0.01em">One Mission</span></div>` +
       `<div style="display:flex;flex-direction:column;gap:2px">` +
       this.NAV_STARTER.map(([k, l, ic]) => `<div class="omd-nav${d.tab === k ? ' active' : ''}" data-act="nav" data-id="${k}"><i data-lucide="${ic}" width="15" height="15"></i>${l}</div>`).join('') +
@@ -761,9 +756,30 @@ export class DemoEngine {
       `<div class="omd-nav omd-static"><i data-lucide="user" width="15" height="15"></i>Profil</div>` +
       `<div class="omd-nav omd-static"><i data-lucide="settings" width="15" height="15"></i>Paramètres</div>` +
       `</div>`
+    )
+  }
 
+  private renderApp(root: Root) {
+    const d = root._d
+    const nav = root.querySelector('.omd-navbar')
+    const content = root.querySelector('.omd-content')
+    if (!nav || !content) return
+
+    nav.innerHTML = this.navHtml(d)
     content.innerHTML = this.view(d, d.tab) + this.mqModal(d) + this.nqModal(d)
     this.renderIcons()
+  }
+
+  /**
+   * Rendu HTML statique du tableau de bord par défaut (état initial,
+   * `tab: 'dashboard'`) — aucun `root._d`, aucun listener, aucune mutation.
+   * Utilisé par InteractiveDemoMobileStatic pour afficher une simple vitrine
+   * figée, visuellement identique au premier écran du mockup interactif,
+   * sans embarquer la moindre interactivité.
+   */
+  renderStaticDashboard(): { navHtml: string; contentHtml: string } {
+    const d = this.makeState()
+    return { navHtml: this.navHtml(d), contentHtml: this.view(d, 'dashboard') + this.mqModal(d) + this.nqModal(d) }
   }
 
   private bar(pct: number, h?: number) {

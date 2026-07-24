@@ -98,6 +98,20 @@
 .landing-page {
   font-family: 'Geist', var(--font-sans);
 }
+/*
+ * Correctif crash WebKit (pincer-zoomer iOS Safari) — bissection confirmée
+ * sur la branche : sur une page aussi longue, WebKit semble composer la
+ * landing en une seule grande couche graphique, et la recomposer en entier
+ * pendant un pincer-zoomer prolongé suivi d'un déplacement. `will-change:
+ * transform` n'a aucun effet visuel ni de mise en page (contrairement à
+ * `contain`, essayé puis abandonné car il recadrait le mockup) : c'est un
+ * pur indice de composition qui incite le navigateur à promouvoir chaque
+ * section dans son propre calque à l'avance. #demo (qui contient le
+ * mockup) est explicitement exclue, ce correctif ne le concerne pas.
+ */
+.landing-page main > section:not(#demo) {
+  will-change: transform;
+}
 .landing-mono {
   font-family: 'Geist Mono', ui-monospace, monospace;
 }

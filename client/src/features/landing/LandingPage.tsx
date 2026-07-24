@@ -218,8 +218,23 @@ export function LandingPage() {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-[-320px] mx-auto h-[640px] w-[880px] rounded-full opacity-25 blur-[120px]"
-        style={{ background: 'radial-gradient(closest-side, var(--accent), transparent)' }}
+        className="pointer-events-none absolute inset-x-0 top-[-320px] mx-auto h-[640px] w-[880px] rounded-full opacity-25 blur-[60px]"
+        style={{
+          background: 'radial-gradient(closest-side, var(--accent), transparent)',
+          // Correctif définitif crash WebKit (pincer-zoomer iOS Safari) —
+          // bissection confirmée sur la branche : ce halo et celui du
+          // mockup ne doivent jamais se superposer dans la composition
+          // GPU. clipPath retire la moitié basse (celle tournée vers le
+          // mockup, plus bas sur la page) : géométrie identique à celle
+          // qui a fait disparaître le crash sur plusieurs essais répétés.
+          // maskImage fait s'estomper le halo jusqu'à un alpha nul AVANT
+          // d'atteindre cette limite (35%→55%) : la coupe tombe dans une
+          // zone déjà invisible, aucun bord dur perceptible — rendu
+          // visuel inchangé, mêmes couleur/opacité/taille/position/flou.
+          clipPath: 'inset(0 0 45% 0)',
+          maskImage: 'linear-gradient(to bottom, #000 0%, #000 35%, transparent 55%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 35%, transparent 55%)',
+        }}
       />
 
       {/* ── Navigation ──
@@ -329,10 +344,27 @@ export function LandingPage() {
         >
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 -top-2.5 mx-auto h-[460px] w-[1040px] max-w-full rounded-full opacity-40 blur-[140px]"
-            style={{ background: 'radial-gradient(closest-side, rgba(139,92,246,.6), transparent)' }}
+            className="pointer-events-none absolute inset-x-0 -top-2.5 mx-auto h-[460px] w-[1040px] max-w-full rounded-full opacity-40 blur-[70px]"
+            style={{
+              background: 'radial-gradient(closest-side, rgba(139,92,246,.6), transparent)',
+              // Correctif définitif — symétrique du halo Hero ci-dessus :
+              // retire la moitié haute (tournée vers le Hero, plus haut
+              // sur la page), avec la même marge de fondu invisible avant
+              // la coupe. Voir le commentaire détaillé sur le halo Hero.
+              clipPath: 'inset(45% 0 0 0)',
+              maskImage: 'linear-gradient(to top, #000 0%, #000 35%, transparent 55%)',
+              WebkitMaskImage: 'linear-gradient(to top, #000 0%, #000 35%, transparent 55%)',
+            }}
           />
-          <InteractiveDemo />
+          {/* Sous md uniquement : élargit de 40px (20px de chaque côté) la
+              largeur disponible pour le mockup, sans toucher au composant
+              lui-même — celui-ci mesure sa largeur réelle et s'affiche donc
+              mécaniquement ~10-15% plus grand sur téléphone, même cadrage,
+              même calcul d'échelle, aucun autre effet (neutre dès md, et le
+              halo ci-dessus n'est pas concerné). */}
+          <div className="max-md:-mx-5">
+            <InteractiveDemo />
+          </div>
         </motion.section>
 
         {/* ── Fonctionnalités ── */}
